@@ -1,7 +1,18 @@
 // =============================================================================
-// KLINIKO — schema.prisma (MVP) — backend kliniko-api (NestJS + Prisma)
-// Multi-tenant (hopitalId) + offline-first (UUID client, rowVersion, deletedAt)
-// À compléter par migration SQL manuelle : RLS, trigger row_version, colonne montant
+// KLINIKO — schema.prisma (MVP)
+// Backend kliniko-api (NestJS + Prisma) — reconstitué le 28/07/2026
+// -----------------------------------------------------------------------------
+// Principes repris du socle validé :
+//   - Multi-tenant : chaque modèle métier porte hopitalId (isolation par clinique)
+//   - Offline-first : UUID générés côté client, createdAt/updatedAt/deletedAt +
+//     rowVersion pour la détection de conflits à la synchro
+//   - Facturation Mobile Money : paiements référencés à Campay
+//
+// À COMPLÉTER PAR UNE MIGRATION SQL MANUELLE (Prisma ne sait pas les exprimer) :
+//   1. Row-Level Security (RLS) : politiques d'isolation par hopital_id
+//   2. Trigger d'auto-incrément de row_version à chaque UPDATE
+//   3. Colonne calculée `montant` de LigneFacture (sinon la calculer côté appli)
+//   -> je fournis cette migration séparément sur demande.
 // =============================================================================
 
 generator client {
@@ -12,6 +23,8 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ----------------------------- Enums ----------------------------------------
 
 enum Sexe {
   M
@@ -54,18 +67,20 @@ enum StatutRappel {
   echec
 }
 
+// ----------------------------- Tenant ---------------------------------------
+
 model Hopital {
-  id          String    @id @default(uuid()) @db.Uuid
-  nom         String
-  code        String    @unique @db.Citext
-  ville       String?
-  telephone   String?
-  campayAppId String?   @map("campay_app_id")
-  actif       Boolean   @default(true)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
-  rowVersion  Int       @default(0) @map("row_version")
+  id           String    @id @default(uuid()) @db.Uuid
+  nom          String
+  code         String    @unique @db.Citext
+  ville        String?
+  telephone    String?
+  campayAppId  String?   @map("campay_app_id")
+  actif        Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion   Int       @default(0) @map("row_version")
 
   utilisateurs  Utilisateur[]
   roles         Role[]
@@ -86,11 +101,13 @@ model Hopital {
   @@map("hopitaux")
 }
 
+// ----------------------------- RBAC -----------------------------------------
+
 model Utilisateur {
   id                String    @id @default(uuid()) @db.Uuid
   hopitalId         String    @map("hopital_id") @db.Uuid
   email             String    @db.Citext
-  motDePasse        String    @map("mot_de_passe")
+  motDePasse        String    @map("mot_de_passe") // hash argon2/bcrypt
   nom               String
   prenom            String?
   telephone         String?
@@ -119,8 +136,8 @@ model Role {
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
   rowVersion Int      @default(0) @map("row_version")
 
-  hopital      Hopital           @relation(fields: [hopitalId], references: [id])
-  permissions  RolePermission[]
+  hopital     Hopital           @relation(fields: [hopitalId], references: [id])
+  permissions RolePermission[]
   utilisateurs UtilisateurRole[]
 
   @@unique([hopitalId, code])
@@ -160,6 +177,8 @@ model UtilisateurRole {
   @@map("utilisateur_roles")
 }
 
+// --------------------------- Référentiels -----------------------------------
+
 model Service {
   id         String    @id @default(uuid()) @db.Uuid
   hopitalId  String    @map("hopital_id") @db.Uuid
@@ -169,7 +188,7 @@ model Service {
   deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion Int       @default(0) @map("row_version")
 
-  hopital     Hopital      @relation(fields: [hopitalId], references: [id])
+  hopital     Hopital        @relation(fields: [hopitalId], references: [id])
   unitesSoins UniteSoins[]
   praticiens  Praticien[]
   rendezVous  RendezVous[]
@@ -253,6 +272,8 @@ model Tarif {
   @@map("tarifs")
 }
 
+// ----------------------------- Patients -------------------------------------
+
 model Patient {
   id            String    @id @default(uuid()) @db.Uuid
   hopitalId     String    @map("hopital_id") @db.Uuid
@@ -278,6 +299,8 @@ model Patient {
   @@index([hopitalId, telephone])
   @@map("patients")
 }
+
+// --------------------------- Rendez-vous ------------------------------------
 
 model RendezVous {
   id          String     @id @default(uuid()) @db.Uuid
@@ -307,6 +330,8 @@ model RendezVous {
   @@map("rendez_vous")
 }
 
+// --------------------------- Consultations ----------------------------------
+
 model Consultation {
   id               String    @id @default(uuid()) @db.Uuid
   hopitalId        String    @map("hopital_id") @db.Uuid
@@ -332,6 +357,8 @@ model Consultation {
   @@map("consultations")
 }
 
+// ---------------------------- Facturation -----------------------------------
+
 model Facture {
   id             String        @id @default(uuid()) @db.Uuid
   hopitalId      String        @map("hopital_id") @db.Uuid
@@ -348,9 +375,9 @@ model Facture {
   deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
   rowVersion     Int           @default(0) @map("row_version")
 
-  hopital      Hopital       @relation(fields: [hopitalId], references: [id])
-  patient      Patient       @relation(fields: [patientId], references: [id])
-  consultation Consultation? @relation(fields: [consultationId], references: [id])
+  hopital      Hopital        @relation(fields: [hopitalId], references: [id])
+  patient      Patient        @relation(fields: [patientId], references: [id])
+  consultation Consultation?  @relation(fields: [consultationId], references: [id])
   lignes       LigneFacture[]
   paiements    Paiement[]
 
@@ -366,6 +393,8 @@ model LigneFacture {
   libelle      String
   quantite     Int      @default(1)
   prixUnitaire Decimal  @map("prix_unitaire") @db.Decimal(12, 2)
+  // montant = quantite * prixUnitaire — à calculer côté appli, ou via colonne
+  // générée STORED ajoutée par migration SQL manuelle.
   montant      Decimal  @db.Decimal(12, 2)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
@@ -378,6 +407,8 @@ model LigneFacture {
   @@index([hopitalId, factureId])
   @@map("lignes_facture")
 }
+
+// ----------------------------- Paiements ------------------------------------
 
 model Paiement {
   id              String        @id @default(uuid()) @db.Uuid
@@ -403,6 +434,8 @@ model Paiement {
   @@map("paiements")
 }
 
+// ------------------------------ Rappels -------------------------------------
+
 model Rappel {
   id           String       @id @default(uuid()) @db.Uuid
   hopitalId    String       @map("hopital_id") @db.Uuid
@@ -422,6 +455,8 @@ model Rappel {
   @@index([hopitalId, statut, planifiePour])
   @@map("rappels")
 }
+
+// --------------------------- Journal d'audit --------------------------------
 
 model JournalAudit {
   id            BigInt   @id @default(autoincrement())
