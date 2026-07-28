@@ -1,4 +1,3 @@
-@'
 import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreatePatientDto {
