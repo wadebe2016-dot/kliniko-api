@@ -1,433 +1,441 @@
+// =============================================================================
+// KLINIKO — schema.prisma (MVP) — backend kliniko-api (NestJS + Prisma)
+// Multi-tenant (hopitalId) + offline-first (UUID client, rowVersion, deletedAt)
+// À compléter par migration SQL manuelle : RLS, trigger row_version, colonne montant
+// =============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model Clinic {
-  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String
-  slug             String            @unique @db.Citext
-  phone            String?
-  email            String?           @db.Citext
-  address          String?
-  city             String?           @default("Douala")
-  country          String?           @default("CM")
-  currency         String            @default("XAF")
-  timezone         String            @default("Africa/Douala")
-  logoUrl          String?           @map("logo_url")
-  isActive         Boolean           @default(true) @map("is_active")
-  plan             String            @default("trial")
-  trialEndsAt      DateTime?         @map("trial_ends_at") @db.Timestamptz(6)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  users            AppUser[]
-  appointments     Appointment[]
-  audit_log        audit_log[]
-  consultations    Consultation[]
-  invoices         Invoice[]
-  medical_history  MedicalHistory[]
-  patients         Patient[]
-  patient_document PatientDocument[]
-  payments         Payment[]
-  prescriptions    Prescription[]
-  reminders        Reminder[]
-  rooms            Room[]
-  serviceItems     ServiceItem[]
-
-  @@map("clinic")
+enum Sexe {
+  M
+  F
 }
 
-model AppUser {
-  id                                           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId                                     String            @map("clinic_id") @db.Uuid
-  fullName                                     String            @map("full_name")
-  email                                        String?           @db.Citext
-  phone                                        String?
-  passwordHash                                 String            @map("password_hash")
-  role                                         user_role         @default(secretary)
-  speciality                                   String?
-  isActive                                     Boolean           @default(true) @map("is_active")
-  lastLoginAt                                  DateTime?         @map("last_login_at") @db.Timestamptz(6)
-  createdAt                                    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                                    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt                                    DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  clinic                                       Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  appointment_appointment_created_byToapp_user Appointment[]     @relation("appointment_created_byToapp_user")
-  appointmentsAsDoc                            Appointment[]     @relation("DoctorAppointments")
-  audit_log                                    audit_log[]
-  consultations                                Consultation[]
-  invoice                                      Invoice[]
-  medical_history                              MedicalHistory[]
-  patient                                      Patient[]
-  patient_document                             PatientDocument[]
-  payment                                      Payment[]
-  prescriptions                                Prescription[]
+enum StatutRdv {
+  planifie
+  confirme
+  honore
+  annule
+  absent
+}
 
-  @@unique([clinicId, email])
-  @@index([clinicId], map: "idx_user_clinic")
-  @@map("app_user")
+enum OrigineRdv {
+  clinique
+  patient
+}
+
+enum StatutFacture {
+  ouverte
+  partielle
+  reglee
+  annulee
+}
+
+enum MoyenPaiement {
+  mobile_money
+  especes
+}
+
+enum CanalRappel {
+  whatsapp
+  sms
+}
+
+enum StatutRappel {
+  en_attente
+  envoye
+  echec
+}
+
+model Hopital {
+  id          String    @id @default(uuid()) @db.Uuid
+  nom         String
+  code        String    @unique @db.Citext
+  ville       String?
+  telephone   String?
+  campayAppId String?   @map("campay_app_id")
+  actif       Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion  Int       @default(0) @map("row_version")
+
+  utilisateurs  Utilisateur[]
+  roles         Role[]
+  services      Service[]
+  unitesSoins   UniteSoins[]
+  praticiens    Praticien[]
+  actes         Acte[]
+  tarifs        Tarif[]
+  patients      Patient[]
+  rendezVous    RendezVous[]
+  consultations Consultation[]
+  factures      Facture[]
+  lignesFacture LigneFacture[]
+  paiements     Paiement[]
+  rappels       Rappel[]
+  journalAudit  JournalAudit[]
+
+  @@map("hopitaux")
+}
+
+model Utilisateur {
+  id                String    @id @default(uuid()) @db.Uuid
+  hopitalId         String    @map("hopital_id") @db.Uuid
+  email             String    @db.Citext
+  motDePasse        String    @map("mot_de_passe")
+  nom               String
+  prenom            String?
+  telephone         String?
+  actif             Boolean   @default(true)
+  derniereConnexion DateTime? @map("derniere_connexion") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion        Int       @default(0) @map("row_version")
+
+  hopital    Hopital           @relation(fields: [hopitalId], references: [id])
+  roles      UtilisateurRole[]
+  praticiens Praticien[]
+  audit      JournalAudit[]
+
+  @@unique([hopitalId, email])
+  @@map("utilisateurs")
+}
+
+model Role {
+  id         String   @id @default(uuid()) @db.Uuid
+  hopitalId  String   @map("hopital_id") @db.Uuid
+  code       String
+  libelle    String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion Int      @default(0) @map("row_version")
+
+  hopital      Hopital           @relation(fields: [hopitalId], references: [id])
+  permissions  RolePermission[]
+  utilisateurs UtilisateurRole[]
+
+  @@unique([hopitalId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id      String @id @default(uuid()) @db.Uuid
+  code    String @unique
+  libelle String
+  module  String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UtilisateurRole {
+  utilisateurId String @map("utilisateur_id") @db.Uuid
+  roleId        String @map("role_id") @db.Uuid
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  role        Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([utilisateurId, roleId])
+  @@map("utilisateur_roles")
+}
+
+model Service {
+  id         String    @id @default(uuid()) @db.Uuid
+  hopitalId  String    @map("hopital_id") @db.Uuid
+  libelle    String
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion Int       @default(0) @map("row_version")
+
+  hopital     Hopital      @relation(fields: [hopitalId], references: [id])
+  unitesSoins UniteSoins[]
+  praticiens  Praticien[]
+  rendezVous  RendezVous[]
+
+  @@map("services")
+}
+
+model UniteSoins {
+  id         String    @id @default(uuid()) @db.Uuid
+  hopitalId  String    @map("hopital_id") @db.Uuid
+  serviceId  String?   @map("service_id") @db.Uuid
+  libelle    String
+  nbLits     Int       @default(0) @map("nb_lits")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion Int       @default(0) @map("row_version")
+
+  hopital Hopital  @relation(fields: [hopitalId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@map("unites_soins")
+}
+
+model Praticien {
+  id            String    @id @default(uuid()) @db.Uuid
+  hopitalId     String    @map("hopital_id") @db.Uuid
+  utilisateurId String?   @map("utilisateur_id") @db.Uuid
+  serviceId     String?   @map("service_id") @db.Uuid
+  nom           String
+  prenom        String?
+  specialite    String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion    Int       @default(0) @map("row_version")
+
+  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
+  utilisateur   Utilisateur?   @relation(fields: [utilisateurId], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  rendezVous    RendezVous[]
+  consultations Consultation[]
+
+  @@map("praticiens")
+}
+
+model Acte {
+  id         String    @id @default(uuid()) @db.Uuid
+  hopitalId  String    @map("hopital_id") @db.Uuid
+  code       String
+  libelle    String
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion Int       @default(0) @map("row_version")
+
+  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
+  tarifs        Tarif[]
+  lignesFacture LigneFacture[]
+
+  @@unique([hopitalId, code])
+  @@map("actes")
+}
+
+model Tarif {
+  id         String    @id @default(uuid()) @db.Uuid
+  hopitalId  String    @map("hopital_id") @db.Uuid
+  acteId     String    @map("acte_id") @db.Uuid
+  montant    Decimal   @db.Decimal(12, 2)
+  devise     String    @default("XAF") @db.Char(3)
+  dateDebut  DateTime  @default(now()) @map("date_debut") @db.Date
+  dateFin    DateTime? @map("date_fin") @db.Date
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion Int       @default(0) @map("row_version")
+
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  acte    Acte    @relation(fields: [acteId], references: [id])
+
+  @@map("tarifs")
 }
 
 model Patient {
-  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId              String            @map("clinic_id") @db.Uuid
-  recordNumber          String            @map("record_number")
-  firstName             String            @map("first_name")
-  lastName              String            @map("last_name")
-  sex                   patient_sex       @default(unknown)
-  dateOfBirth           DateTime?         @map("date_of_birth") @db.Date
-  phone                 String?
-  email                 String?           @db.Citext
-  address               String?
-  bloodGroup            String?           @map("blood_group")
-  emergencyContactName  String?           @map("emergency_contact_name")
-  emergencyContactPhone String?           @map("emergency_contact_phone")
-  notes                 String?
-  createdBy             String?           @map("created_by") @db.Uuid
-  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt             DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  appointments          Appointment[]
-  consultations         Consultation[]
-  invoices              Invoice[]
-  history               MedicalHistory[]
-  clinic                Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user              AppUser?          @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  documents             PatientDocument[]
-  prescriptions         Prescription[]
+  id            String    @id @default(uuid()) @db.Uuid
+  hopitalId     String    @map("hopital_id") @db.Uuid
+  numeroDossier String    @map("numero_dossier")
+  nom           String
+  prenom        String?
+  dateNaissance DateTime? @map("date_naissance") @db.Date
+  sexe          Sexe?
+  telephone     String?
+  adresse       String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion    Int       @default(0) @map("row_version")
 
-  @@unique([clinicId, recordNumber])
-  @@index([clinicId], map: "idx_patient_clinic")
-  @@index([clinicId, lastName, firstName], map: "idx_patient_name")
-  @@index([clinicId, phone], map: "idx_patient_phone")
-  @@map("patient")
+  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
+  rendezVous    RendezVous[]
+  consultations Consultation[]
+  factures      Facture[]
+
+  @@unique([hopitalId, numeroDossier])
+  @@index([hopitalId, nom])
+  @@index([hopitalId, telephone])
+  @@map("patients")
 }
 
-model MedicalHistory {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId   String   @map("clinic_id") @db.Uuid
-  patientId  String   @map("patient_id") @db.Uuid
-  type       String
-  label      String
-  detail     String?
-  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  createdBy  String?  @map("created_by") @db.Uuid
-  clinic     Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user   AppUser? @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model RendezVous {
+  id          String     @id @default(uuid()) @db.Uuid
+  hopitalId   String     @map("hopital_id") @db.Uuid
+  patientId   String     @map("patient_id") @db.Uuid
+  praticienId String?    @map("praticien_id") @db.Uuid
+  serviceId   String?    @map("service_id") @db.Uuid
+  debut       DateTime   @db.Timestamptz
+  fin         DateTime?  @db.Timestamptz
+  statut      StatutRdv  @default(planifie)
+  origine     OrigineRdv @default(clinique)
+  motif       String?
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime?  @map("deleted_at") @db.Timestamptz
+  rowVersion  Int        @default(0) @map("row_version")
 
-  @@index([patientId], map: "idx_history_patient")
-  @@map("medical_history")
-}
+  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  praticien     Praticien?     @relation(fields: [praticienId], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  consultations Consultation[]
+  rappels       Rappel[]
 
-model Room {
-  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId     String        @map("clinic_id") @db.Uuid
-  name         String
-  isActive     Boolean       @default(true) @map("is_active")
-  appointments Appointment[]
-  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@map("room")
-}
-
-model Appointment {
-  id                                        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId                                  String             @map("clinic_id") @db.Uuid
-  patientId                                 String             @map("patient_id") @db.Uuid
-  doctorId                                  String             @map("doctor_id") @db.Uuid
-  roomId                                    String?            @map("room_id") @db.Uuid
-  startsAt                                  DateTime           @map("starts_at") @db.Timestamptz(6)
-  endsAt                                    DateTime           @map("ends_at") @db.Timestamptz(6)
-  reason                                    String?
-  status                                    appointment_status @default(scheduled)
-  createdBy                                 String?            @map("created_by") @db.Uuid
-  createdAt                                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                                 DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt                                 DateTime?          @map("deleted_at") @db.Timestamptz(6)
-  clinic                                    Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user_appointment_created_byToapp_user AppUser?           @relation("appointment_created_byToapp_user", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  doctor                                    AppUser            @relation("DoctorAppointments", fields: [doctorId], references: [id], onUpdate: NoAction)
-  patient                                   Patient            @relation(fields: [patientId], references: [id], onUpdate: NoAction)
-  room                                      Room?              @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  consultations                             Consultation[]
-  reminders                                 Reminder[]
-
-  @@index([clinicId, startsAt], map: "idx_appt_clinic_time")
-  @@index([doctorId, startsAt], map: "idx_appt_doctor")
-  @@index([patientId], map: "idx_appt_patient")
-  @@map("appointment")
+  @@index([hopitalId, praticienId, debut])
+  @@index([hopitalId, patientId])
+  @@map("rendez_vous")
 }
 
 model Consultation {
-  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId      String            @map("clinic_id") @db.Uuid
-  patientId     String            @map("patient_id") @db.Uuid
-  doctorId      String            @map("doctor_id") @db.Uuid
-  appointmentId String?           @map("appointment_id") @db.Uuid
-  consultedAt   DateTime          @default(now()) @map("consulted_at") @db.Timestamptz(6)
-  reason        String?
-  symptoms      String?
-  diagnosis     String?
-  observations  String?
-  vitals        Json?
-  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  appointment   Appointment?      @relation(fields: [appointmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  clinic        Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  doctor        AppUser           @relation(fields: [doctorId], references: [id], onUpdate: NoAction)
-  patient       Patient           @relation(fields: [patientId], references: [id], onUpdate: NoAction)
-  invoices      Invoice[]
-  documents     PatientDocument[]
-  prescriptions Prescription[]
+  id               String    @id @default(uuid()) @db.Uuid
+  hopitalId        String    @map("hopital_id") @db.Uuid
+  patientId        String    @map("patient_id") @db.Uuid
+  praticienId      String?   @map("praticien_id") @db.Uuid
+  rendezVousId     String?   @map("rendez_vous_id") @db.Uuid
+  dateConsultation DateTime  @default(now()) @map("date_consultation") @db.Timestamptz
+  motif            String?
+  observations     String?
+  diagnostic       String?
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion       Int       @default(0) @map("row_version")
 
-  @@index([clinicId, consultedAt(sort: Desc)], map: "idx_consult_clinic")
-  @@index([patientId, consultedAt(sort: Desc)], map: "idx_consult_patient")
-  @@map("consultation")
+  hopital    Hopital     @relation(fields: [hopitalId], references: [id])
+  patient    Patient     @relation(fields: [patientId], references: [id])
+  praticien  Praticien?  @relation(fields: [praticienId], references: [id])
+  rendezVous RendezVous? @relation(fields: [rendezVousId], references: [id])
+  factures   Facture[]
+
+  @@index([hopitalId, patientId, dateConsultation])
+  @@map("consultations")
 }
 
-model PatientDocument {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId       String        @map("clinic_id") @db.Uuid
+model Facture {
+  id             String        @id @default(uuid()) @db.Uuid
+  hopitalId      String        @map("hopital_id") @db.Uuid
   patientId      String        @map("patient_id") @db.Uuid
   consultationId String?       @map("consultation_id") @db.Uuid
-  fileName       String        @map("file_name")
-  fileUrl        String        @map("file_url")
-  mimeType       String?       @map("mime_type")
-  sizeBytes      BigInt?       @map("size_bytes")
-  uploadedBy     String?       @map("uploaded_by") @db.Uuid
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  clinic         Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  consultation   Consultation? @relation(fields: [consultationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user       AppUser?      @relation(fields: [uploadedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  numero         String
+  dateFacture    DateTime      @default(now()) @map("date_facture") @db.Date
+  montantTotal   Decimal       @default(0) @map("montant_total") @db.Decimal(12, 2)
+  montantPaye    Decimal       @default(0) @map("montant_paye") @db.Decimal(12, 2)
+  devise         String        @default("XAF") @db.Char(3)
+  statut         StatutFacture @default(ouverte)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
+  rowVersion     Int           @default(0) @map("row_version")
 
-  @@index([patientId], map: "idx_doc_patient")
-  @@map("patient_document")
+  hopital      Hopital       @relation(fields: [hopitalId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id])
+  lignes       LigneFacture[]
+  paiements    Paiement[]
+
+  @@unique([hopitalId, numero])
+  @@map("factures")
 }
 
-model Prescription {
-  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId       String             @map("clinic_id") @db.Uuid
-  patientId      String             @map("patient_id") @db.Uuid
-  consultationId String?            @map("consultation_id") @db.Uuid
-  doctorId       String             @map("doctor_id") @db.Uuid
-  prescribedAt   DateTime           @default(now()) @map("prescribed_at") @db.Timestamptz(6)
-  notes          String?
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  deletedAt      DateTime?          @map("deleted_at") @db.Timestamptz(6)
-  clinic         Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  consultation   Consultation?      @relation(fields: [consultationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  doctor         AppUser            @relation(fields: [doctorId], references: [id], onUpdate: NoAction)
-  patient        Patient            @relation(fields: [patientId], references: [id], onUpdate: NoAction)
-  items          PrescriptionItem[]
+model LigneFacture {
+  id           String   @id @default(uuid()) @db.Uuid
+  hopitalId    String   @map("hopital_id") @db.Uuid
+  factureId    String   @map("facture_id") @db.Uuid
+  acteId       String?  @map("acte_id") @db.Uuid
+  libelle      String
+  quantite     Int      @default(1)
+  prixUnitaire Decimal  @map("prix_unitaire") @db.Decimal(12, 2)
+  montant      Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion   Int      @default(0) @map("row_version")
 
-  @@index([patientId], map: "idx_presc_patient")
-  @@map("prescription")
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  facture Facture @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  acte    Acte?   @relation(fields: [acteId], references: [id])
+
+  @@index([hopitalId, factureId])
+  @@map("lignes_facture")
 }
 
-model PrescriptionItem {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  prescriptionId String       @map("prescription_id") @db.Uuid
-  drugName       String       @map("drug_name")
-  dosage         String?
-  frequency      String?
-  duration       String?
-  instructions   String?
-  position       Int          @default(0)
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Paiement {
+  id              String        @id @default(uuid()) @db.Uuid
+  hopitalId       String        @map("hopital_id") @db.Uuid
+  factureId       String        @map("facture_id") @db.Uuid
+  montant         Decimal       @db.Decimal(12, 2)
+  devise          String        @default("XAF") @db.Char(3)
+  moyen           MoyenPaiement
+  campayReference String?       @map("campay_reference")
+  campayStatut    String?       @map("campay_statut")
+  telephonePayeur String?       @map("telephone_payeur")
+  datePaiement    DateTime      @default(now()) @map("date_paiement") @db.Timestamptz
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
+  rowVersion      Int           @default(0) @map("row_version")
 
-  @@index([prescriptionId], map: "idx_presc_item")
-  @@map("prescription_item")
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  facture Facture @relation(fields: [factureId], references: [id])
+
+  @@index([hopitalId, factureId])
+  @@index([campayReference])
+  @@map("paiements")
 }
 
-model ServiceItem {
-  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId     String        @map("clinic_id") @db.Uuid
-  code         String?
-  label        String
-  unitPrice    Decimal       @default(0) @map("unit_price") @db.Decimal(12, 2)
-  isActive     Boolean       @default(true) @map("is_active")
-  invoiceLines InvoiceLine[]
-  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Rappel {
+  id           String       @id @default(uuid()) @db.Uuid
+  hopitalId    String       @map("hopital_id") @db.Uuid
+  rendezVousId String       @map("rendez_vous_id") @db.Uuid
+  canal        CanalRappel
+  destinataire String
+  planifiePour DateTime     @map("planifie_pour") @db.Timestamptz
+  statut       StatutRappel @default(en_attente)
+  envoyeLe     DateTime?    @map("envoye_le") @db.Timestamptz
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion   Int          @default(0) @map("row_version")
 
-  @@unique([clinicId, code])
-  @@map("service_item")
+  hopital    Hopital    @relation(fields: [hopitalId], references: [id])
+  rendezVous RendezVous @relation(fields: [rendezVousId], references: [id], onDelete: Cascade)
+
+  @@index([hopitalId, statut, planifiePour])
+  @@map("rappels")
 }
 
-model Invoice {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId       String         @map("clinic_id") @db.Uuid
-  patientId      String         @map("patient_id") @db.Uuid
-  consultationId String?        @map("consultation_id") @db.Uuid
-  invoiceNumber  String         @map("invoice_number")
-  status         invoice_status @default(draft)
-  subtotal       Decimal        @default(0) @db.Decimal(12, 2)
-  discount       Decimal        @default(0) @db.Decimal(12, 2)
-  total          Decimal        @default(0) @db.Decimal(12, 2)
-  amountPaid     Decimal        @default(0) @map("amount_paid") @db.Decimal(12, 2)
-  issuedAt       DateTime?      @map("issued_at") @db.Timestamptz(6)
-  createdBy      String?        @map("created_by") @db.Uuid
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
-  clinic         Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  consultation   Consultation?  @relation(fields: [consultationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  app_user       AppUser?       @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  patient        Patient        @relation(fields: [patientId], references: [id], onUpdate: NoAction)
-  lines          InvoiceLine[]
-  payments       Payment[]
+model JournalAudit {
+  id            BigInt   @id @default(autoincrement())
+  hopitalId     String   @map("hopital_id") @db.Uuid
+  utilisateurId String?  @map("utilisateur_id") @db.Uuid
+  action        String
+  entite        String
+  entiteId      String?  @map("entite_id") @db.Uuid
+  details       Json?
+  horodatage    DateTime @default(now()) @db.Timestamptz
 
-  @@unique([clinicId, invoiceNumber])
-  @@index([clinicId, createdAt(sort: Desc)], map: "idx_invoice_clinic")
-  @@index([patientId], map: "idx_invoice_patient")
-  @@index([clinicId, status], map: "idx_invoice_status")
-  @@map("invoice")
-}
+  hopital     Hopital      @relation(fields: [hopitalId], references: [id])
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
 
-model InvoiceLine {
-  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invoiceId     String       @map("invoice_id") @db.Uuid
-  serviceItemId String?      @map("service_item_id") @db.Uuid
-  label         String
-  quantity      Decimal      @default(1) @db.Decimal(10, 2)
-  unitPrice     Decimal      @default(0) @map("unit_price") @db.Decimal(12, 2)
-  lineTotal     Decimal      @default(0) @map("line_total") @db.Decimal(12, 2)
-  invoice       Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  serviceItem   ServiceItem? @relation(fields: [serviceItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([invoiceId], map: "idx_invoice_line")
-  @@map("invoice_line")
-}
-
-model Payment {
-  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId        String         @map("clinic_id") @db.Uuid
-  invoiceId       String         @map("invoice_id") @db.Uuid
-  method          payment_method
-  status          payment_status @default(pending)
-  amount          Decimal        @db.Decimal(12, 2)
-  momoProvider    momo_provider? @map("momo_provider")
-  momoPhone       String?        @map("momo_phone")
-  providerRef     String?        @map("provider_ref")
-  providerPayload Json?          @map("provider_payload")
-  paidAt          DateTime?      @map("paid_at") @db.Timestamptz(6)
-  createdBy       String?        @map("created_by") @db.Uuid
-  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  clinic          Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user        AppUser?       @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  invoice         Invoice        @relation(fields: [invoiceId], references: [id], onUpdate: NoAction)
-
-  @@index([clinicId, createdAt(sort: Desc)], map: "idx_payment_clinic")
-  @@index([invoiceId], map: "idx_payment_invoice")
-  @@index([providerRef], map: "idx_payment_provider")
-  @@map("payment")
-}
-
-model Reminder {
-  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinicId      String           @map("clinic_id") @db.Uuid
-  appointmentId String           @map("appointment_id") @db.Uuid
-  channel       reminder_channel @default(sms)
-  status        reminder_status  @default(queued)
-  scheduledFor  DateTime         @map("scheduled_for") @db.Timestamptz(6)
-  sentAt        DateTime?        @map("sent_at") @db.Timestamptz(6)
-  toPhone       String           @map("to_phone")
-  body          String
-  providerRef   String?          @map("provider_ref")
-  errorDetail   String?          @map("error_detail")
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  appointment   Appointment      @relation(fields: [appointmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  clinic        Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([appointmentId], map: "idx_reminder_appt")
-  @@index([status, scheduledFor], map: "idx_reminder_due")
-  @@map("reminder")
-}
-
-model audit_log {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clinic_id   String   @db.Uuid
-  user_id     String?  @db.Uuid
-  action      String
-  entity_type String
-  entity_id   String?  @db.Uuid
-  metadata    Json?
-  ip_address  String?  @db.Inet
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  clinic      Clinic   @relation(fields: [clinic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  app_user    AppUser? @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([clinic_id, created_at(sort: Desc)], map: "idx_audit_clinic")
-  @@index([entity_type, entity_id], map: "idx_audit_entity")
-}
-
-enum appointment_status {
-  scheduled
-  confirmed
-  arrived
-  completed
-  cancelled
-  no_show
-}
-
-enum invoice_status {
-  draft
-  issued
-  partially_paid
-  paid
-  cancelled
-}
-
-enum momo_provider {
-  mtn
-  orange
-}
-
-enum patient_sex {
-  M
-  F
-  other
-  unknown
-}
-
-enum payment_method {
-  momo
-  cash
-  card
-  transfer
-}
-
-enum payment_status {
-  pending
-  success
-  failed
-  refunded
-}
-
-enum reminder_channel {
-  sms
-  whatsapp
-}
-
-enum reminder_status {
-  queued
-  sent
-  delivered
-  failed
-  cancelled
-}
-
-enum user_role {
-  owner
-  admin
-  doctor
-  secretary
-  cashier
+  @@index([hopitalId, horodatage])
+  @@map("journal_audit")
 }
