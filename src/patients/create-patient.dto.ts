@@ -31,4 +31,3 @@ export class CreatePatientDto {
   @IsString()
   adresse?: string;
 }
-'@ | Set-Content -Encoding utf8 src\patients\dto\create-patient.dto.ts
