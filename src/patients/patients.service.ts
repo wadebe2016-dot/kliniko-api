@@ -11,31 +11,28 @@ export class PatientsService {
   async create(dto: CreatePatientDto) {
     return this.prisma.patient.create({
       data: {
-        clinicId: dto.clinicId,
-        recordNumber: dto.recordNumber,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        sex: dto.sex,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-        phone: dto.phone,
-        email: dto.email,
-        address: dto.address,
-        bloodGroup: dto.bloodGroup,
-        emergencyContactName: dto.emergencyContactName,
-        emergencyContactPhone: dto.emergencyContactPhone,
-        notes: dto.notes,
+        hopitalId: dto.hopitalId,
+        numeroDossier: dto.numeroDossier,
+        nom: dto.nom,
+        prenom: dto.prenom,
+        sexe: dto.sexe,
+        dateNaissance: dto.dateNaissance
+          ? new Date(dto.dateNaissance)
+          : undefined,
+        telephone: dto.telephone,
+        adresse: dto.adresse,
       },
     });
   }
 
   // Lister les patients d'une clinique (hors patients supprimés)
-  async findAll(clinicId: string) {
+  async findAll(hopitalId: string) {
     return this.prisma.patient.findMany({
       where: {
-        clinicId,
+        hopitalId,
         deletedAt: null,
       },
-      orderBy: { lastName: 'asc' },
+      orderBy: { nom: 'asc' },
     });
   }
 
@@ -57,12 +54,14 @@ export class PatientsService {
       where: { id },
       data: {
         ...dto,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        dateNaissance: dto.dateNaissance
+          ? new Date(dto.dateNaissance)
+          : undefined,
       },
     });
   }
 
-  // Supprimer (suppression douce : on garde la donnée, on marque la date)
+  // Suppression douce : on garde la donnée, on marque la date
   async remove(id: string) {
     await this.findOne(id);
     return this.prisma.patient.update({
