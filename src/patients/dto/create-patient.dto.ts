@@ -1,70 +1,33 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEmail,
-  IsEnum,
-  IsDateString,
-  IsUUID,
-} from 'class-validator';
-
-export enum PatientSexDto {
-  M = 'M',
-  F = 'F',
-  other = 'other',
-  unknown = 'unknown',
-}
+@'
+import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreatePatientDto {
   @IsUUID()
-  @IsNotEmpty()
-  clinicId: string;
+  hopitalId: string;
 
   @IsString()
-  @IsNotEmpty()
-  recordNumber: string;
+  numeroDossier: string;
 
   @IsString()
-  @IsNotEmpty()
-  firstName: string;
+  nom: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  lastName: string;
+  prenom?: string;
 
-  @IsEnum(PatientSexDto)
   @IsOptional()
-  sex?: PatientSexDto;
-
-  @IsDateString()
-  @IsOptional()
-  dateOfBirth?: string;
-
   @IsString()
-  @IsOptional()
-  phone?: string;
+  dateNaissance?: string;
 
-  @IsEmail()
   @IsOptional()
-  email?: string;
+  @IsIn(['M', 'F'])
+  sexe?: 'M' | 'F';
 
+  @IsOptional()
   @IsString()
-  @IsOptional()
-  address?: string;
+  telephone?: string;
 
-  @IsString()
   @IsOptional()
-  bloodGroup?: string;
-
   @IsString()
-  @IsOptional()
-  emergencyContactName?: string;
-
-  @IsString()
-  @IsOptional()
-  emergencyContactPhone?: string;
-
-  @IsString()
-  @IsOptional()
-  notes?: string;
+  adresse?: string;
 }
