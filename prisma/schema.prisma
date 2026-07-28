@@ -1,18 +1,18 @@
-﻿// =============================================================================
-// KLINIKO â€” schema.prisma (MVP)
-// Backend kliniko-api (NestJS + Prisma) â€” reconstituÃ© le 28/07/2026
+// =============================================================================
+// KLINIKO - schema.prisma (MVP)
+// Backend kliniko-api (NestJS + Prisma) - reconstitue le 28/07/2026
 // -----------------------------------------------------------------------------
-// Principes repris du socle validÃ© :
-//   - Multi-tenant : chaque modÃ¨le mÃ©tier porte hopitalId (isolation par clinique)
-//   - Offline-first : UUID gÃ©nÃ©rÃ©s cÃ´tÃ© client, createdAt/updatedAt/deletedAt +
-//     rowVersion pour la dÃ©tection de conflits Ã  la synchro
-//   - Facturation Mobile Money : paiements rÃ©fÃ©rencÃ©s Ã  Campay
+// Principes repris du socle valide :
+//   - Multi-tenant : chaque modele metier porte hopitalId (isolation par clinique)
+//   - Offline-first : UUID generes cote client, createdAt/updatedAt/deletedAt +
+//     rowVersion pour la detection de conflits a la synchro
+//   - Facturation Mobile Money : paiements references a Campay
 //
-// Ã€ COMPLÃ‰TER PAR UNE MIGRATION SQL MANUELLE (Prisma ne sait pas les exprimer) :
+// A COMPLETER PAR UNE MIGRATION SQL MANUELLE (Prisma ne sait pas les exprimer) :
 //   1. Row-Level Security (RLS) : politiques d'isolation par hopital_id
-//   2. Trigger d'auto-incrÃ©ment de row_version Ã  chaque UPDATE
-//   3. Colonne calculÃ©e `montant` de LigneFacture (sinon la calculer cÃ´tÃ© appli)
-//   -> je fournis cette migration sÃ©parÃ©ment sur demande.
+//   2. Trigger d'auto-increment de row_version a chaque UPDATE
+//   3. Colonne calculee `montant` de LigneFacture (sinon la calculer cote appli)
+//   -> je fournis cette migration separement sur demande.
 // =============================================================================
 
 generator client {
@@ -176,7 +176,7 @@ model UtilisateurRole {
   @@map("utilisateur_roles")
 }
 
-// --------------------------- RÃ©fÃ©rentiels -----------------------------------
+// --------------------------- Referentiels -----------------------------------
 
 model Service {
   id         String    @id @default(uuid()) @db.Uuid
@@ -392,8 +392,8 @@ model LigneFacture {
   libelle      String
   quantite     Int      @default(1)
   prixUnitaire Decimal  @map("prix_unitaire") @db.Decimal(12, 2)
-  // montant = quantite * prixUnitaire â€” Ã  calculer cÃ´tÃ© appli, ou via colonne
-  // gÃ©nÃ©rÃ©e STORED ajoutÃ©e par migration SQL manuelle.
+  // montant = quantite * prixUnitaire - a calculer cote appli, ou via colonne
+  // generee STORED ajoutee par migration SQL manuelle.
   montant      Decimal  @db.Decimal(12, 2)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
