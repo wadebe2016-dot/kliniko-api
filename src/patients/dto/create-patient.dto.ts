@@ -1,7 +1,7 @@
-import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CreatePatientDto {
-  @IsUUID()
+  @IsString()
   hopitalId: string;
 
   @IsString()
