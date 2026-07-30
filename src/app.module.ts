@@ -5,12 +5,19 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { PatientsModule } from './patients/patients.module';
 import { RendezVousModule } from './rendez-vous/rendez-vous.module';
+import { FacturesModule } from './factures/factures.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule, PatientsModule, RendezVousModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    PatientsModule,
+    RendezVousModule,
+    FacturesModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
