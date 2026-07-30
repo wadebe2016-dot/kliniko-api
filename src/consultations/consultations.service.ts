@@ -109,6 +109,16 @@ export class ConsultationsService {
     return consultation;
   }
 
+  // Sexe du patient (seule donnee non clinique transmise a l'IA)
+  async sexeDuPatient(hopitalId: string, patientId: string) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { sexe: true, hopitalId: true },
+    });
+    if (!patient || patient.hopitalId !== hopitalId) return null;
+    return patient.sexe;
+  }
+
   // Completer ou corriger le contenu medical
   async update(hopitalId: string, id: string, dto: UpdateConsultationDto) {
     await this.findOne(hopitalId, id);
@@ -123,3 +133,4 @@ export class ConsultationsService {
     });
   }
 }
+
