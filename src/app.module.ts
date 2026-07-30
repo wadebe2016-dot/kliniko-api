@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PatientsModule } from './patients/patients.module';
 import { RendezVousModule } from './rendez-vous/rendez-vous.module';
 import { FacturesModule } from './factures/factures.module';
+import { ConsultationsModule } from './consultations/consultations.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -17,6 +18,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     PatientsModule,
     RendezVousModule,
     FacturesModule,
+    ConsultationsModule,
   ],
   controllers: [AppController],
   providers: [
