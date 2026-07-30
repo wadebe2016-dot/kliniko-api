@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- Kliniko - Seed authentification : permissions, roles, compte administrateur
 -- Idempotent : peut etre rejoue sans creer de doublons.
 -- Application (sur l'EC2, dans kliniko-api) :
@@ -95,3 +95,4 @@ JOIN roles r ON r.hopital_id = u.hopital_id AND r.code = 'ADMIN'
 WHERE u.hopital_id = 'a0000000-0000-0000-0000-000000000001'
   AND u.email = 'admin@kliniko.cm'
 ON CONFLICT DO NOTHING;
+
