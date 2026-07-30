@@ -1,9 +1,8 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+﻿import { IsIn, IsOptional, IsString } from 'class-validator';
 
+// Note : hopitalId a disparu de ce DTO. La clinique est desormais
+// determinee par le jeton de l'utilisateur connecte, jamais par le client.
 export class CreatePatientDto {
-  @IsString()
-  hopitalId: string;
-
   @IsString()
   numeroDossier: string;
 
@@ -14,6 +13,7 @@ export class CreatePatientDto {
   @IsString()
   prenom?: string;
 
+  // Date au format ISO (ex : "1990-05-14")
   @IsOptional()
   @IsString()
   dateNaissance?: string;

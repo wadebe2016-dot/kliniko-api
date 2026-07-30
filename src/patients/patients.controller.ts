@@ -6,38 +6,51 @@ import {
   Param,
   Patch,
   Delete,
-  Query,
+  Req,
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
+  // hopitalId ne vient plus JAMAIS de la requête :
+  // il est lu dans le jeton de l'utilisateur connecté (req.user).
+
   @Post()
-  create(@Body() dto: CreatePatientDto) {
-    return this.patientsService.create(dto);
+  @Permissions('patient.creer')
+  create(@Req() req: any, @Body() dto: CreatePatientDto) {
+    return this.patientsService.create(req.user.hopitalId, dto);
   }
 
   @Get()
-  findAll(@Query('hopitalId') hopitalId: string) {
-    return this.patientsService.findAll(hopitalId);
+  @Permissions('patient.lire')
+  findAll(@Req() req: any) {
+    return this.patientsService.findAll(req.user.hopitalId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.patientsService.findOne(id);
+  @Permissions('patient.lire')
+  findOne(@Req() req: any, @Param('id') id: string) {
+    return this.patientsService.findOne(req.user.hopitalId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePatientDto) {
-    return this.patientsService.update(id, dto);
+  @Permissions('patient.modifier')
+  update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdatePatientDto,
+  ) {
+    return this.patientsService.update(req.user.hopitalId, id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.patientsService.remove(id);
+  @Permissions('patient.supprimer')
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.patientsService.remove(req.user.hopitalId, id);
   }
 }

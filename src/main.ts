@@ -5,16 +5,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({ origin: true });
-
+  // Validation automatique des données entrantes
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
+      whitelist: true, // ignore les champs non déclarés
+      forbidNonWhitelisted: true, // rejette les champs inconnus
+      transform: true, // convertit les types automatiquement
     }),
   );
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

@@ -7,11 +7,11 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 export class PatientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Créer un patient
-  async create(dto: CreatePatientDto) {
+  // Créer un patient — hopitalId vient du jeton, pas du client
+  async create(hopitalId: string, dto: CreatePatientDto) {
     return this.prisma.patient.create({
       data: {
-        hopitalId: dto.hopitalId,
+        hopitalId,
         numeroDossier: dto.numeroDossier,
         nom: dto.nom,
         prenom: dto.prenom,
@@ -25,7 +25,7 @@ export class PatientsService {
     });
   }
 
-  // Lister les patients d'une clinique (hors patients supprimés)
+  // Lister les patients de la clinique de l'utilisateur connecté
   async findAll(hopitalId: string) {
     return this.prisma.patient.findMany({
       where: {
@@ -36,20 +36,20 @@ export class PatientsService {
     });
   }
 
-  // Consulter un patient par son id
-  async findOne(id: string) {
+  // Consulter un patient — refuse l'accès aux patients d'autres cliniques
+  async findOne(hopitalId: string, id: string) {
     const patient = await this.prisma.patient.findUnique({
       where: { id },
     });
-    if (!patient || patient.deletedAt) {
+    if (!patient || patient.deletedAt || patient.hopitalId !== hopitalId) {
       throw new NotFoundException(`Patient ${id} introuvable`);
     }
     return patient;
   }
 
   // Modifier un patient
-  async update(id: string, dto: UpdatePatientDto) {
-    await this.findOne(id); // vérifie qu'il existe
+  async update(hopitalId: string, id: string, dto: UpdatePatientDto) {
+    await this.findOne(hopitalId, id); // vérifie existence ET appartenance
     return this.prisma.patient.update({
       where: { id },
       data: {
@@ -62,8 +62,8 @@ export class PatientsService {
   }
 
   // Suppression douce : on garde la donnée, on marque la date
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(hopitalId: string, id: string) {
+    await this.findOne(hopitalId, id);
     return this.prisma.patient.update({
       where: { id },
       data: { deletedAt: new Date() },
