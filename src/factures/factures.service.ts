@@ -15,6 +15,33 @@ const AVEC_PATIENT = {
 export class FacturesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Catalogue des actes avec leur tarif en vigueur
+  async listerActes(hopitalId: string) {
+    const maintenant = new Date();
+    const actes = await this.prisma.acte.findMany({
+      where: { hopitalId, deletedAt: null },
+      orderBy: { code: 'asc' },
+      include: {
+        tarifs: {
+          where: {
+            deletedAt: null,
+            dateDebut: { lte: maintenant },
+            OR: [{ dateFin: null }, { dateFin: { gte: maintenant } }],
+          },
+          orderBy: { dateDebut: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    return actes.map((a) => ({
+      id: a.id,
+      code: a.code,
+      libelle: a.libelle,
+      tarif: a.tarifs[0] ? Number(a.tarifs[0].montant) : null,
+      devise: a.tarifs[0] ? a.tarifs[0].devise : 'XAF',
+    }));
+  }
+
   // Creer une facture : les lignes avec acteId prennent le tarif en vigueur,
   // les lignes libres exigent libelle + prixUnitaire.
   async create(hopitalId: string, dto: CreateFactureDto) {
@@ -184,4 +211,3 @@ export class FacturesService {
     });
   }
 }
-
