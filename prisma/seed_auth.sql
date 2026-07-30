@@ -1,45 +1,38 @@
--- =============================================================================
--- Kliniko — Seed authentification : permissions, rôles, compte administrateur
--- Idempotent : peut être rejoué sans créer de doublons.
+﻿-- =============================================================================
+-- Kliniko - Seed authentification : permissions, roles, compte administrateur
+-- Idempotent : peut etre rejoue sans creer de doublons.
 -- Application (sur l'EC2, dans kliniko-api) :
 --   npx prisma db execute --file prisma/seed_auth.sql
+-- Note : la base ayant ete creee par "prisma db push", les identifiants (id)
+-- et les colonnes updated_at n'ont pas de valeur par defaut cote base :
+-- ce script les fournit donc explicitement.
 -- =============================================================================
 
--- -----------------------------------------------------------------------------
--- 1. Catalogue des permissions (global, partagé par toutes les cliniques)
--- -----------------------------------------------------------------------------
-INSERT INTO permissions (code, libelle, module) VALUES
- ('patient.lire',          'Consulter les dossiers patients',      'patients'),
- ('patient.creer',         'Créer un dossier patient',             'patients'),
- ('patient.modifier',      'Modifier un dossier patient',          'patients'),
- ('patient.supprimer',     'Supprimer (archiver) un patient',      'patients'),
- ('rdv.lire',              'Consulter les rendez-vous',            'rendez-vous'),
- ('rdv.creer',             'Créer un rendez-vous',                 'rendez-vous'),
- ('rdv.modifier',          'Modifier un rendez-vous',              'rendez-vous'),
- ('rdv.annuler',           'Annuler un rendez-vous',               'rendez-vous'),
- ('consultation.lire',     'Consulter les consultations',          'consultations'),
- ('consultation.creer',    'Créer une consultation',               'consultations'),
- ('consultation.modifier', 'Modifier une consultation',            'consultations'),
- ('facture.lire',          'Consulter les factures',               'facturation'),
- ('facture.creer',         'Créer une facture',                    'facturation'),
- ('facture.encaisser',     'Encaisser un paiement',                'facturation'),
- ('utilisateur.gerer',     'Gérer les utilisateurs et les rôles',  'administration'),
- ('referentiel.gerer',     'Gérer les référentiels (actes, tarifs, services)', 'administration')
+INSERT INTO permissions (id, code, libelle, module) VALUES
+ ('d0000000-0000-0000-0000-000000000001', 'patient.lire',          'Consulter les dossiers patients',      'patients'),
+ ('d0000000-0000-0000-0000-000000000002', 'patient.creer',         'Creer un dossier patient',             'patients'),
+ ('d0000000-0000-0000-0000-000000000003', 'patient.modifier',      'Modifier un dossier patient',          'patients'),
+ ('d0000000-0000-0000-0000-000000000004', 'patient.supprimer',     'Supprimer (archiver) un patient',      'patients'),
+ ('d0000000-0000-0000-0000-000000000005', 'rdv.lire',              'Consulter les rendez-vous',            'rendez-vous'),
+ ('d0000000-0000-0000-0000-000000000006', 'rdv.creer',             'Creer un rendez-vous',                 'rendez-vous'),
+ ('d0000000-0000-0000-0000-000000000007', 'rdv.modifier',          'Modifier un rendez-vous',              'rendez-vous'),
+ ('d0000000-0000-0000-0000-000000000008', 'rdv.annuler',           'Annuler un rendez-vous',               'rendez-vous'),
+ ('d0000000-0000-0000-0000-000000000009', 'consultation.lire',     'Consulter les consultations',          'consultations'),
+ ('d0000000-0000-0000-0000-000000000010', 'consultation.creer',    'Creer une consultation',               'consultations'),
+ ('d0000000-0000-0000-0000-000000000011', 'consultation.modifier', 'Modifier une consultation',            'consultations'),
+ ('d0000000-0000-0000-0000-000000000012', 'facture.lire',          'Consulter les factures',               'facturation'),
+ ('d0000000-0000-0000-0000-000000000013', 'facture.creer',         'Creer une facture',                    'facturation'),
+ ('d0000000-0000-0000-0000-000000000014', 'facture.encaisser',     'Encaisser un paiement',                'facturation'),
+ ('d0000000-0000-0000-0000-000000000015', 'utilisateur.gerer',     'Gerer les utilisateurs et les roles',  'administration'),
+ ('d0000000-0000-0000-0000-000000000016', 'referentiel.gerer',     'Gerer les referentiels (actes, tarifs, services)', 'administration')
 ON CONFLICT (code) DO NOTHING;
 
--- -----------------------------------------------------------------------------
--- 2. Les quatre rôles de base pour la clinique de démonstration
--- -----------------------------------------------------------------------------
-INSERT INTO roles (hopital_id, code, libelle) VALUES
- ('a0000000-0000-0000-0000-000000000001', 'ADMIN',   'Administrateur'),
- ('a0000000-0000-0000-0000-000000000001', 'MEDECIN', 'Médecin'),
- ('a0000000-0000-0000-0000-000000000001', 'ACCUEIL', 'Accueil'),
- ('a0000000-0000-0000-0000-000000000001', 'CAISSE',  'Caisse')
+INSERT INTO roles (id, hopital_id, code, libelle, updated_at) VALUES
+ ('e0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'ADMIN',   'Administrateur', now()),
+ ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'MEDECIN', 'Medecin',        now()),
+ ('e0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'ACCUEIL', 'Accueil',        now()),
+ ('e0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'CAISSE',  'Caisse',         now())
 ON CONFLICT (hopital_id, code) DO NOTHING;
-
--- -----------------------------------------------------------------------------
--- 3. Attribution des permissions aux rôles
--- -----------------------------------------------------------------------------
 
 -- ADMIN : toutes les permissions
 INSERT INTO role_permissions (role_id, permission_id)
@@ -59,7 +52,7 @@ FROM roles r JOIN permissions p ON p.code IN (
 WHERE r.hopital_id = 'a0000000-0000-0000-0000-000000000001' AND r.code = 'MEDECIN'
 ON CONFLICT DO NOTHING;
 
--- ACCUEIL : patients et rendez-vous, pas de médical ni de finance
+-- ACCUEIL : patients et rendez-vous
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r JOIN permissions p ON p.code IN (
@@ -79,13 +72,9 @@ FROM roles r JOIN permissions p ON p.code IN (
 WHERE r.hopital_id = 'a0000000-0000-0000-0000-000000000001' AND r.code = 'CAISSE'
 ON CONFLICT DO NOTHING;
 
--- -----------------------------------------------------------------------------
--- 4. Compte administrateur initial
---    Email : admin@kliniko.cm
---    Mot de passe provisoire : Kliniko#2026   (à changer dès que possible)
---    Le hash ci-dessous est un bcrypt du mot de passe provisoire.
--- -----------------------------------------------------------------------------
-INSERT INTO utilisateurs (id, hopital_id, email, mot_de_passe, nom, prenom, actif)
+-- Compte administrateur initial
+-- Email : admin@kliniko.cm / Mot de passe provisoire : Kliniko#2026
+INSERT INTO utilisateurs (id, hopital_id, email, mot_de_passe, nom, prenom, actif, updated_at)
 VALUES (
   'c0000000-0000-0000-0000-000000000001',
   'a0000000-0000-0000-0000-000000000001',
@@ -93,13 +82,12 @@ VALUES (
   '$2b$10$BmZfSr4Xv7gRExaHsRwliOSjyJOCR0p0dv.FzLFaAgIwoSW7yZxs6',
   'Administrateur',
   'Kliniko',
-  true
+  true,
+  now()
 )
 ON CONFLICT (hopital_id, email) DO NOTHING;
 
--- -----------------------------------------------------------------------------
--- 5. Lier le compte administrateur au rôle ADMIN
--- -----------------------------------------------------------------------------
+-- Lier le compte administrateur au role ADMIN
 INSERT INTO utilisateur_roles (utilisateur_id, role_id)
 SELECT u.id, r.id
 FROM utilisateurs u
