@@ -8,6 +8,7 @@ import { RendezVousModule } from './rendez-vous/rendez-vous.module';
 import { FacturesModule } from './factures/factures.module';
 import { ConsultationsModule } from './consultations/consultations.module';
 import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
+import { PaiementsModule } from './paiements/paiements.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -21,6 +22,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     FacturesModule,
     ConsultationsModule,
     UtilisateursModule,
+    PaiementsModule,
   ],
   controllers: [AppController],
   providers: [
