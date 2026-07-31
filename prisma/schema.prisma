@@ -69,33 +69,36 @@ enum StatutRappel {
 // ----------------------------- Tenant ---------------------------------------
 
 model Hopital {
-  id           String    @id @default(uuid()) @db.Uuid
-  nom          String
-  code         String    @unique @db.Citext
-  ville        String?
-  telephone    String?
-  campayAppId  String?   @map("campay_app_id")
-  actif        Boolean   @default(true)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
-  rowVersion   Int       @default(0) @map("row_version")
+  id          String    @id @default(uuid()) @db.Uuid
+  nom         String
+  code        String    @unique @db.Citext
+  ville       String?
+  telephone   String?
+  campayAppId String?   @map("campay_app_id")
+  actif       Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion  Int       @default(0) @map("row_version")
 
-  utilisateurs  Utilisateur[]
-  roles         Role[]
-  services      Service[]
-  unitesSoins   UniteSoins[]
-  praticiens    Praticien[]
-  actes         Acte[]
-  tarifs        Tarif[]
-  patients      Patient[]
-  rendezVous    RendezVous[]
-  consultations Consultation[]
-  factures      Facture[]
-  lignesFacture LigneFacture[]
-  paiements     Paiement[]
-  rappels       Rappel[]
-  journalAudit  JournalAudit[]
+  utilisateurs     Utilisateur[]
+  roles            Role[]
+  services         Service[]
+  unitesSoins      UniteSoins[]
+  praticiens       Praticien[]
+  actes            Acte[]
+  tarifs           Tarif[]
+  patients         Patient[]
+  rendezVous       RendezVous[]
+  consultations    Consultation[]
+  factures         Facture[]
+  lignesFacture    LigneFacture[]
+  paiements        Paiement[]
+  rappels          Rappel[]
+  medicaments      Medicament[]
+  ordonnances      Ordonnance[]
+  lignesOrdonnance LigneOrdonnance[]
+  journalAudit     JournalAudit[]
 
   @@map("hopitaux")
 }
@@ -135,8 +138,8 @@ model Role {
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
   rowVersion Int      @default(0) @map("row_version")
 
-  hopital     Hopital           @relation(fields: [hopitalId], references: [id])
-  permissions RolePermission[]
+  hopital      Hopital           @relation(fields: [hopitalId], references: [id])
+  permissions  RolePermission[]
   utilisateurs UtilisateurRole[]
 
   @@unique([hopitalId, code])
@@ -187,7 +190,7 @@ model Service {
   deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion Int       @default(0) @map("row_version")
 
-  hopital     Hopital        @relation(fields: [hopitalId], references: [id])
+  hopital     Hopital      @relation(fields: [hopitalId], references: [id])
   unitesSoins UniteSoins[]
   praticiens  Praticien[]
   rendezVous  RendezVous[]
@@ -230,6 +233,7 @@ model Praticien {
   service       Service?       @relation(fields: [serviceId], references: [id])
   rendezVous    RendezVous[]
   consultations Consultation[]
+  ordonnances   Ordonnance[]
 
   @@map("praticiens")
 }
@@ -293,6 +297,8 @@ model Patient {
   consultations Consultation[]
   factures      Facture[]
 
+  ordonnances Ordonnance[]
+
   @@unique([hopitalId, numeroDossier])
   @@index([hopitalId, nom])
   @@index([hopitalId, telephone])
@@ -351,6 +357,8 @@ model Consultation {
   praticien  Praticien?  @relation(fields: [praticienId], references: [id])
   rendezVous RendezVous? @relation(fields: [rendezVousId], references: [id])
   factures   Facture[]
+
+  ordonnances Ordonnance[]
 
   @@index([hopitalId, patientId, dateConsultation])
   @@map("consultations")
@@ -472,4 +480,86 @@ model JournalAudit {
 
   @@index([hopitalId, horodatage])
   @@map("journal_audit")
+}
+
+// ---------------------------- Ordonnances -----------------------------------
+
+enum StatutOrdonnance {
+  brouillon
+  validee
+  annulee
+}
+
+model Medicament {
+  id           String    @id @default(uuid()) @db.Uuid
+  hopitalId    String    @map("hopital_id") @db.Uuid
+  code         String?
+  denomination String
+  forme        String?
+  dosage       String?
+  actif        Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion   Int       @default(0) @map("row_version")
+
+  hopital Hopital           @relation(fields: [hopitalId], references: [id])
+  lignes  LigneOrdonnance[]
+
+  @@unique([hopitalId, code])
+  @@index([hopitalId, denomination])
+  @@map("medicaments")
+}
+
+model Ordonnance {
+  id              String           @id @default(uuid()) @db.Uuid
+  hopitalId       String           @map("hopital_id") @db.Uuid
+  patientId       String           @map("patient_id") @db.Uuid
+  praticienId     String?          @map("praticien_id") @db.Uuid
+  consultationId  String?          @map("consultation_id") @db.Uuid
+  numero          String
+  dateOrdonnance  DateTime         @default(now()) @map("date_ordonnance") @db.Timestamptz
+  statut          StatutOrdonnance @default(brouillon)
+  notes           String?
+  valideeLe       DateTime?        @map("validee_le") @db.Timestamptz
+  annuleeLe       DateTime?        @map("annulee_le") @db.Timestamptz
+  motifAnnulation String?          @map("motif_annulation")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz
+  rowVersion      Int              @default(0) @map("row_version")
+
+  hopital      Hopital           @relation(fields: [hopitalId], references: [id])
+  patient      Patient           @relation(fields: [patientId], references: [id])
+  praticien    Praticien?        @relation(fields: [praticienId], references: [id])
+  consultation Consultation?     @relation(fields: [consultationId], references: [id])
+  lignes       LigneOrdonnance[]
+
+  @@unique([hopitalId, numero])
+  @@index([hopitalId, patientId, dateOrdonnance])
+  @@map("ordonnances")
+}
+
+model LigneOrdonnance {
+  id           String   @id @default(uuid()) @db.Uuid
+  hopitalId    String   @map("hopital_id") @db.Uuid
+  ordonnanceId String   @map("ordonnance_id") @db.Uuid
+  medicamentId String?  @map("medicament_id") @db.Uuid
+  libelle      String
+  posologie    String
+  duree        String?
+  quantite     String?
+  voie         String?
+  instructions String?
+  ordre        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion   Int      @default(0) @map("row_version")
+
+  hopital    Hopital     @relation(fields: [hopitalId], references: [id])
+  ordonnance Ordonnance  @relation(fields: [ordonnanceId], references: [id], onDelete: Cascade)
+  medicament Medicament? @relation(fields: [medicamentId], references: [id])
+
+  @@index([hopitalId, ordonnanceId])
+  @@map("lignes_ordonnance")
 }
