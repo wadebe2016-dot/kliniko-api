@@ -99,6 +99,8 @@ model Hopital {
   ordonnances      Ordonnance[]
   lignesOrdonnance LigneOrdonnance[]
   journalAudit     JournalAudit[]
+  horaireTravails  HoraireTravail[]
+  indisponibilites Indisponibilite[]
 
   @@map("hopitaux")
 }
@@ -228,12 +230,14 @@ model Praticien {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion    Int       @default(0) @map("row_version")
 
-  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
-  utilisateur   Utilisateur?   @relation(fields: [utilisateurId], references: [id])
-  service       Service?       @relation(fields: [serviceId], references: [id])
-  rendezVous    RendezVous[]
-  consultations Consultation[]
-  ordonnances   Ordonnance[]
+  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
+  utilisateur      Utilisateur?      @relation(fields: [utilisateurId], references: [id])
+  service          Service?          @relation(fields: [serviceId], references: [id])
+  rendezVous       RendezVous[]
+  consultations    Consultation[]
+  ordonnances      Ordonnance[]
+  horaireTravails  HoraireTravail[]
+  indisponibilites Indisponibilite[]
 
   @@map("praticiens")
 }
@@ -562,4 +566,53 @@ model LigneOrdonnance {
 
   @@index([hopitalId, ordonnanceId])
   @@map("lignes_ordonnance")
+}
+
+// -------------------------- Disponibilites ----------------------------------
+// Les heures sont stockees en texte "HH:MM" plutot qu'en date : le Cameroun
+// est a UTC+1 toute l'annee, sans heure d'ete. Un horaire de travail est une
+// regle hebdomadaire, pas un instant ; le melanger avec un fuseau horaire ne
+// ferait qu'introduire des bugs de decalage.
+
+model HoraireTravail {
+  id           String    @id @default(uuid()) @db.Uuid
+  hopitalId    String    @map("hopital_id") @db.Uuid
+  praticienId  String    @map("praticien_id") @db.Uuid
+  jourSemaine  Int       @map("jour_semaine")
+  heureDebut   String    @map("heure_debut")
+  heureFin     String    @map("heure_fin")
+  dureeCreneau Int       @default(30) @map("duree_creneau")
+  actif        Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion   Int       @default(0) @map("row_version")
+
+  hopital   Hopital   @relation(fields: [hopitalId], references: [id])
+  praticien Praticien @relation(fields: [praticienId], references: [id])
+
+  @@index([hopitalId, praticienId, jourSemaine])
+  @@map("horaires_travail")
+}
+
+// Une indisponibilite sans praticien vaut pour la clinique entiere :
+// jour ferie, fermeture exceptionnelle, coupure prolongee.
+model Indisponibilite {
+  id          String    @id @default(uuid()) @db.Uuid
+  hopitalId   String    @map("hopital_id") @db.Uuid
+  praticienId String?   @map("praticien_id") @db.Uuid
+  debut       DateTime  @db.Timestamptz
+  fin         DateTime  @db.Timestamptz
+  motif       String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion  Int       @default(0) @map("row_version")
+
+  hopital   Hopital    @relation(fields: [hopitalId], references: [id])
+  praticien Praticien? @relation(fields: [praticienId], references: [id])
+
+  @@index([hopitalId, praticienId, debut])
+  @@index([hopitalId, debut])
+  @@map("indisponibilites")
 }
