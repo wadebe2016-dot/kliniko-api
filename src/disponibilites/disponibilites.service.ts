@@ -313,6 +313,9 @@ export class DisponibilitesService {
     const finReelle =
       fin ?? new Date(debut.getTime() + DUREE_RDV_PAR_DEFAUT_MIN * 60000);
 
+    // Chevauchement : l'autre commence avant notre fin ET finit apres notre
+    // debut. Un rendez-vous sans fin declaree est repute durer la duree par
+    // defaut, d'ou la seconde branche du OR.
     const rdv = await this.prisma.rendezVous.findFirst({
       where: {
         hopitalId,
@@ -321,17 +324,25 @@ export class DisponibilitesService {
         statut: { in: ['planifie', 'confirme', 'honore'] },
         ...(rendezVousIgnore ? { id: { not: rendezVousIgnore } } : {}),
         debut: { lt: finReelle },
+        OR: [
+          { fin: { gt: debut } },
+          {
+            fin: null,
+            debut: {
+              gt: new Date(
+                debut.getTime() - DUREE_RDV_PAR_DEFAUT_MIN * 60000,
+              ),
+            },
+          },
+        ],
       },
       select: { debut: true, fin: true },
-      orderBy: { debut: 'desc' },
     });
     if (rdv) {
       const finRdv =
         rdv.fin ??
         new Date(rdv.debut.getTime() + DUREE_RDV_PAR_DEFAUT_MIN * 60000);
-      if (chevauche(debut, finReelle, rdv.debut, finRdv)) {
-        return `Le praticien a deja un rendez-vous de ${rdv.debut.toISOString()} a ${finRdv.toISOString()}`;
-      }
+      return `Le praticien a deja un rendez-vous de ${rdv.debut.toISOString()} a ${finRdv.toISOString()}`;
     }
 
     const indispo = await this.prisma.indisponibilite.findFirst({
