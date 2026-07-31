@@ -64,20 +64,10 @@ export class PaiementsService {
     }
 
     const numero = this.normaliserNumero(dto.telephone);
-    const reponse = await this.campay.collect({
-      montant: dto.montant,
-      numero,
-      description: `Kliniko facture ${facture.numero}`,
-      externalReference: facture.id,
-    });
 
-    if (!reponse.ok || !reponse.reference) {
-      console.error('Campay collect refuse :', JSON.stringify(reponse.raw));
-      throw new ServiceUnavailableException(
-        "Le service Mobile Money n'a pas accepte la demande",
-      );
-    }
-
+    // On enregistre d abord la tentative : son identifiant sert de reference
+    // externe UNIQUE cote Campay. Avec une reference deja vue, Campay renvoie
+    // l ancienne transaction au lieu d en creer une nouvelle.
     const paiement = await this.prisma.paiement.create({
       data: {
         hopitalId,
@@ -85,6 +75,37 @@ export class PaiementsService {
         montant: dto.montant,
         moyen: 'mobile_money',
         telephonePayeur: numero,
+        campayStatut: 'INITIE',
+      },
+    });
+
+    let reponse;
+    try {
+      reponse = await this.campay.collect({
+        montant: dto.montant,
+        numero,
+        description: `Kliniko facture ${facture.numero}`,
+        externalReference: paiement.id,
+      });
+    } catch (e) {
+      await this.prisma.paiement.delete({ where: { id: paiement.id } });
+      console.error('Campay injoignable :', (e as Error).message);
+      throw new ServiceUnavailableException(
+        'Le service Mobile Money est injoignable',
+      );
+    }
+
+    if (!reponse.ok || !reponse.reference) {
+      await this.prisma.paiement.delete({ where: { id: paiement.id } });
+      console.error('Campay collect refuse :', JSON.stringify(reponse.raw));
+      throw new ServiceUnavailableException(
+        "Le service Mobile Money n'a pas accepte la demande",
+      );
+    }
+
+    await this.prisma.paiement.update({
+      where: { id: paiement.id },
+      data: {
         campayReference: reponse.reference,
         campayStatut: 'PENDING',
       },
@@ -105,6 +126,7 @@ export class PaiementsService {
   async verifier(hopitalId: string | null, reference: string) {
     const paiement = await this.prisma.paiement.findFirst({
       where: { campayReference: reference, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
     });
     if (!paiement) {
       throw new NotFoundException(`Paiement ${reference} introuvable`);
