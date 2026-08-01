@@ -11,6 +11,7 @@ import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
 import { PaiementsModule } from './paiements/paiements.module';
 import { OrdonnancesModule } from './ordonnances/ordonnances.module';
 import { DisponibilitesModule } from './disponibilites/disponibilites.module';
+import { PublicModule } from './public/public.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -27,6 +28,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     PaiementsModule,
     OrdonnancesModule,
     DisponibilitesModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [
