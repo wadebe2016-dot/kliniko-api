@@ -84,26 +84,27 @@ model Hopital {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion    Int       @default(0) @map("row_version")
 
-  utilisateurs     Utilisateur[]
-  roles            Role[]
-  services         Service[]
-  unitesSoins      UniteSoins[]
-  praticiens       Praticien[]
-  actes            Acte[]
-  tarifs           Tarif[]
-  patients         Patient[]
-  rendezVous       RendezVous[]
-  consultations    Consultation[]
-  factures         Facture[]
-  lignesFacture    LigneFacture[]
-  paiements        Paiement[]
-  rappels          Rappel[]
-  medicaments      Medicament[]
-  ordonnances      Ordonnance[]
-  lignesOrdonnance LigneOrdonnance[]
-  journalAudit     JournalAudit[]
-  horaireTravails  HoraireTravail[]
-  indisponibilites Indisponibilite[]
+  utilisateurs          Utilisateur[]
+  roles                 Role[]
+  services              Service[]
+  unitesSoins           UniteSoins[]
+  praticiens            Praticien[]
+  actes                 Acte[]
+  tarifs                Tarif[]
+  patients              Patient[]
+  rendezVous            RendezVous[]
+  consultations         Consultation[]
+  factures              Facture[]
+  lignesFacture         LigneFacture[]
+  paiements             Paiement[]
+  rappels               Rappel[]
+  medicaments           Medicament[]
+  ordonnances           Ordonnance[]
+  lignesOrdonnance      LigneOrdonnance[]
+  journalAudit          JournalAudit[]
+  horaireTravails       HoraireTravail[]
+  indisponibilites      Indisponibilite[]
+  comptePatientDossiers ComptePatientDossier[]
 
   @@map("hopitaux")
 }
@@ -305,7 +306,8 @@ model Patient {
   consultations Consultation[]
   factures      Facture[]
 
-  ordonnances Ordonnance[]
+  ordonnances           Ordonnance[]
+  comptePatientDossiers ComptePatientDossier[]
 
   @@unique([hopitalId, numeroDossier])
   @@index([hopitalId, nom])
@@ -619,4 +621,57 @@ model Indisponibilite {
   @@index([hopitalId, praticienId, debut])
   @@index([hopitalId, debut])
   @@map("indisponibilites")
+}
+
+// -------------------------- Comptes patients --------------------------------
+// Identite GLOBALE d'un patient de l'application grand public : elle n'appartient
+// a aucune clinique. Le rattachement aux dossiers (un par clinique) se fait par
+// la table compte_patient_dossiers. Aucune donnee medicale ici.
+
+model ComptePatient {
+  id            String    @id @default(uuid()) @db.Uuid
+  telephone     String    @unique
+  nom           String?
+  prenom        String?
+  dateNaissance DateTime? @map("date_naissance") @db.Date
+  sexe          Sexe?
+  actif         Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion    Int       @default(0) @map("row_version")
+
+  dossiers ComptePatientDossier[]
+
+  @@map("compte_patients")
+}
+
+// Code de verification a usage unique, HACHE comme un mot de passe.
+model CodeVerification {
+  id         String    @id @default(uuid()) @db.Uuid
+  telephone  String
+  codeHash   String    @map("code_hash")
+  expireA    DateTime  @map("expire_a") @db.Timestamptz
+  tentatives Int       @default(0)
+  consommeLe DateTime? @map("consomme_le") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([telephone, createdAt])
+  @@map("codes_verification")
+}
+
+// Rattachement d'un compte global au dossier qu'une clinique tient sur lui.
+model ComptePatientDossier {
+  id        String   @id @default(uuid()) @db.Uuid
+  compteId  String   @map("compte_id") @db.Uuid
+  hopitalId String   @map("hopital_id") @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  compte  ComptePatient @relation(fields: [compteId], references: [id])
+  hopital Hopital       @relation(fields: [hopitalId], references: [id])
+  patient Patient       @relation(fields: [patientId], references: [id])
+
+  @@unique([compteId, hopitalId])
+  @@map("compte_patient_dossiers")
 }
