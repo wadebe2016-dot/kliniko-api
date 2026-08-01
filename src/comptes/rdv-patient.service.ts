@@ -7,6 +7,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { DisponibilitesService } from '../disponibilites/disponibilites.service';
 import { DemanderRdvDto } from './dto/rdv-patient.dto';
+import { SmsService } from './sms.service';
 
 // Une demande sans reponse expire au bout de N heures et libere le creneau.
 const EXPIRATION_DEMANDE_H = 6;
@@ -32,6 +33,7 @@ export class RdvPatientService {
   constructor(
     private prisma: PrismaService,
     private disponibilites: DisponibilitesService,
+    private sms: SmsService,
   ) {}
 
   // Balayage paresseux : les demandes patient restees "planifie" au-dela de
@@ -117,7 +119,7 @@ export class RdvPatientService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const cree = await this.prisma.$transaction(async (tx) => {
       // Le dossier du patient dans CETTE clinique : retrouve, ou cree a
       // partir du compte. L'accueil le completera a l'arrivee du patient.
       const lien = await tx.comptePatientDossier.findUnique({
@@ -163,8 +165,29 @@ export class RdvPatientService {
         select: VUE_RDV,
       });
     });
+
+    await this.notifierClinique(cree, compte);
+    return cree;
   }
 
+  // La clinique est prevenue de chaque nouvelle demande. Un echec d'envoi
+  // ne bloque jamais la demande elle-meme.
+  private async notifierClinique(rdv: any, compte: any) {
+    try {
+      if (!rdv?.hopital?.telephone) return;
+      const d = rdv.debut instanceof Date ? rdv.debut : new Date(rdv.debut);
+      const q = d.toLocaleString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long',
+        hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Douala',
+      });
+      await this.sms.envoyer(
+        rdv.hopital.telephone,
+        `Kliniko : nouvelle demande de rendez-vous de ${compte.prenom ?? ''} ${compte.nom} pour le ${q}. Connectez-vous a l'application pour la traiter.`,
+      );
+    } catch (e) {
+      console.error('Notification clinique impossible :', (e as Error).message);
+    }
+  }
   // Numerotation P-NNNN dans la transaction, comme les factures.
   private async genererNumeroDossier(
     tx: any,

@@ -13,5 +13,7 @@ import { PatientAuthGuard } from './patient-auth.guard';
   imports: [PrismaModule, JwtModule.register({}), DisponibilitesModule],
   controllers: [ComptesController, RdvPatientController],
   providers: [ComptesService, RdvPatientService, SmsService, PatientAuthGuard],
+  // Exporte pour que le module rendez-vous puisse notifier les patients
+  exports: [SmsService],
 })
 export class ComptesModule {}
