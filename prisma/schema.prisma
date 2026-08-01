@@ -318,20 +318,24 @@ model Patient {
 // --------------------------- Rendez-vous ------------------------------------
 
 model RendezVous {
-  id          String     @id @default(uuid()) @db.Uuid
-  hopitalId   String     @map("hopital_id") @db.Uuid
-  patientId   String     @map("patient_id") @db.Uuid
-  praticienId String?    @map("praticien_id") @db.Uuid
-  serviceId   String?    @map("service_id") @db.Uuid
-  debut       DateTime   @db.Timestamptz
-  fin         DateTime?  @db.Timestamptz
-  statut      StatutRdv  @default(planifie)
-  origine     OrigineRdv @default(clinique)
+  id          String         @id @default(uuid()) @db.Uuid
+  hopitalId   String         @map("hopital_id") @db.Uuid
+  patientId   String         @map("patient_id") @db.Uuid
+  praticienId String?        @map("praticien_id") @db.Uuid
+  serviceId   String?        @map("service_id") @db.Uuid
+  debut       DateTime       @db.Timestamptz
+  fin         DateTime?      @db.Timestamptz
+  statut      StatutRdv      @default(planifie)
+  origine     OrigineRdv     @default(clinique)
+  compteId    String?        @map("compte_id") @db.Uuid
+  expireA     DateTime?      @map("expire_a") @db.Timestamptz
+  motifRefus  String?        @map("motif_refus")
+  compte      ComptePatient? @relation(fields: [compteId], references: [id])
   motif       String?
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime?  @map("deleted_at") @db.Timestamptz
-  rowVersion  Int        @default(0) @map("row_version")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz
+  rowVersion  Int            @default(0) @map("row_version")
 
   hopital       Hopital        @relation(fields: [hopitalId], references: [id])
   patient       Patient        @relation(fields: [patientId], references: [id])
@@ -641,7 +645,8 @@ model ComptePatient {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion    Int       @default(0) @map("row_version")
 
-  dossiers ComptePatientDossier[]
+  dossiers   ComptePatientDossier[]
+  rendezVous RendezVous[]
 
   @@map("compte_patients")
 }
