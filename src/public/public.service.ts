@@ -93,6 +93,18 @@ export class PublicService {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(du) || !/^\d{4}-\d{2}-\d{2}$/.test(au)) {
       throw new BadRequestException('Dates attendues au format AAAA-MM-JJ');
     }
+    // Les demandes patient expirees liberent leur creneau avant le calcul.
+    await this.prisma.rendezVous.updateMany({
+      where: {
+        origine: 'patient',
+        statut: 'planifie',
+        expireA: { lt: new Date() },
+      },
+      data: {
+        statut: 'annule',
+        motifRefus: 'Demande expiree sans reponse de la clinique',
+      },
+    });
     // Le calcul reutilise le moteur interne ; il ne revele que des heures,
     // jamais l'identite des patients qui occupent les creneaux pris.
     return this.disponibilites.calculerCreneaux(
