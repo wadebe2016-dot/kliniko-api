@@ -69,17 +69,20 @@ enum StatutRappel {
 // ----------------------------- Tenant ---------------------------------------
 
 model Hopital {
-  id          String    @id @default(uuid()) @db.Uuid
-  nom         String
-  code        String    @unique @db.Citext
-  ville       String?
-  telephone   String?
-  campayAppId String?   @map("campay_app_id")
-  actif       Boolean   @default(true)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
-  rowVersion  Int       @default(0) @map("row_version")
+  id            String    @id @default(uuid()) @db.Uuid
+  nom           String
+  code          String    @unique @db.Citext
+  ville         String?
+  telephone     String?
+  campayAppId   String?   @map("campay_app_id")
+  visiblePublic Boolean   @default(false) @map("visible_public")
+  adresse       String?
+  presentation  String?
+  actif         Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion    Int       @default(0) @map("row_version")
 
   utilisateurs     Utilisateur[]
   roles            Role[]
@@ -225,6 +228,7 @@ model Praticien {
   nom           String
   prenom        String?
   specialite    String?
+  visiblePublic Boolean   @default(false) @map("visible_public")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
