@@ -13,6 +13,7 @@ import { OrdonnancesModule } from './ordonnances/ordonnances.module';
 import { DisponibilitesModule } from './disponibilites/disponibilites.module';
 import { PublicModule } from './public/public.module';
 import { ComptesModule } from './comptes/comptes.module';
+import { StatsModule } from './stats/stats.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -31,6 +32,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     DisponibilitesModule,
     PublicModule,
     ComptesModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [
