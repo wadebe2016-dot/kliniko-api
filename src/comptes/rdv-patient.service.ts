@@ -180,7 +180,7 @@ export class RdvPatientService {
         weekday: 'long', day: 'numeric', month: 'long',
         hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Douala',
       });
-      await this.sms.envoyer(
+      await this.sms.envoyerAvecGabarit('nouvelle_demande', [(compte.prenom ? compte.prenom + ' ' : '') + compte.nom, q],
         rdv.hopital.telephone,
         `Kliniko : nouvelle demande de rendez-vous de ${compte.prenom ?? ''} ${compte.nom} pour le ${q}. Connectez-vous a l'application pour la traiter.`,
       );

@@ -87,7 +87,7 @@ export class RendezVousService {
         nouveauStatut === 'confirme'
           ? `Kliniko : votre rendez-vous du ${quand(rdv.debut)} est CONFIRME par ${clinique?.nom ?? 'la clinique'}. Presentez-vous 10 minutes en avance.`
           : `Kliniko : votre rendez-vous du ${quand(rdv.debut)} a ete annule par ${clinique?.nom ?? 'la clinique'}.${clinique?.telephone ? ` Contact : ${clinique.telephone}` : ''}`;
-      await this.sms.envoyer(compte.telephone, message);
+      await this.sms.envoyerAvecGabarit(nouveauStatut === 'confirme' ? 'rdv_confirme' : 'rdv_annule', nouveauStatut === 'confirme' ? [quand(rdv.debut), clinique?.nom ?? 'la clinique'] : [quand(rdv.debut), clinique?.nom ?? 'la clinique', clinique?.telephone ?? 'la clinique'], compte.telephone, message);
     } catch (e) {
       // volontairement silencieux : la notification est un plus, jamais un blocage
       console.error('Notification patient impossible :', (e as Error).message);
