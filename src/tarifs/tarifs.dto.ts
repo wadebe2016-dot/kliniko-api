@@ -39,3 +39,32 @@ export class ModifierPrixMedicamentDto {
   @Min(0)
   prixVente: number;
 }
+
+export class CreerMedicamentDto {
+  @IsString()
+  @IsNotEmpty({ message: 'La dénomination est obligatoire' })
+  denomination: string;
+
+  @IsOptional()
+  @IsString()
+  dosage?: string;
+
+  // Comprime, Gelule, Sirop, Injectable...
+  @IsOptional()
+  @IsString()
+  forme?: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  prixVente?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  seuilAlerte?: number;
+}

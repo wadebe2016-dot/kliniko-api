@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreerActeDto,
+  CreerMedicamentDto,
   ModifierActeDto,
   ModifierPrixMedicamentDto,
   NouveauTarifDto,
@@ -135,6 +136,38 @@ export class TarifsService {
       ...m,
       prixVente: m.prixVente !== null ? Number(m.prixVente) : null,
     }));
+  }
+
+  // --------------------------------------------------------------------------
+  // Nouveau medicament au catalogue
+  // --------------------------------------------------------------------------
+  async creerMedicament(hopitalId: string, dto: CreerMedicamentDto) {
+    const existant = await this.prisma.medicament.findFirst({
+      where: {
+        hopitalId,
+        deletedAt: null,
+        denomination: dto.denomination,
+        dosage: dto.dosage ?? null,
+      },
+      select: { id: true },
+    });
+    if (existant) {
+      throw new BadRequestException(
+        `${dto.denomination}${dto.dosage ? ' ' + dto.dosage : ''} existe déjà au catalogue`,
+      );
+    }
+    return this.prisma.medicament.create({
+      data: {
+        hopitalId,
+        denomination: dto.denomination,
+        dosage: dto.dosage ?? null,
+        forme: dto.forme ?? null,
+        code: dto.code ?? null,
+        prixVente: dto.prixVente ?? null,
+        seuilAlerte: dto.seuilAlerte ?? 10,
+      },
+      select: { id: true, denomination: true },
+    });
   }
 
   async modifierPrixMedicament(

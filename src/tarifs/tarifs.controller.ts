@@ -11,6 +11,7 @@ import { Permissions } from '../auth/permissions.decorator';
 import { TarifsService } from './tarifs.service';
 import {
   CreerActeDto,
+  CreerMedicamentDto,
   ModifierActeDto,
   ModifierPrixMedicamentDto,
   NouveauTarifDto,
@@ -56,6 +57,12 @@ export class TarifsController {
   @Permissions('tarif.lire')
   medicaments(@Req() req: any) {
     return this.service.medicaments(req.user.hopitalId);
+  }
+
+  @Post('medicaments')
+  @Permissions('tarif.gerer')
+  creerMedicament(@Req() req: any, @Body() dto: CreerMedicamentDto) {
+    return this.service.creerMedicament(req.user.hopitalId, dto);
   }
 
   @Patch('medicaments/:id')
