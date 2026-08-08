@@ -116,6 +116,7 @@ model Hopital {
   compteTresoreries     CompteTresorerie[]
   categorieTresoreries  CategorieTresorerie[]
   mouvementTresoreries  MouvementTresorerie[]
+  ligneBudgets          LigneBudget[]
 
   @@map("hopitaux")
 }
@@ -978,8 +979,9 @@ model CategorieTresorerie {
   sens      SensCategorie
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
-  hopital    Hopital               @relation(fields: [hopitalId], references: [id])
-  mouvements MouvementTresorerie[]
+  hopital      Hopital               @relation(fields: [hopitalId], references: [id])
+  mouvements   MouvementTresorerie[]
+  ligneBudgets LigneBudget[]
 
   @@unique([hopitalId, nom])
   @@map("categories_tresorerie")
@@ -1007,4 +1009,21 @@ model MouvementTresorerie {
 
   @@index([hopitalId, dateMouvement])
   @@map("mouvements_tresorerie")
+}
+
+// Controle de gestion : une ligne de budget par categorie et par annee.
+// Le realise n'est jamais stocke - il est calcule depuis les mouvements.
+model LigneBudget {
+  id           String   @id @default(uuid()) @db.Uuid
+  hopitalId    String   @map("hopital_id") @db.Uuid
+  annee        Int
+  categorieId  String   @map("categorie_id") @db.Uuid
+  montantPrevu Decimal  @map("montant_prevu") @db.Decimal(14, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital   Hopital             @relation(fields: [hopitalId], references: [id])
+  categorie CategorieTresorerie @relation(fields: [categorieId], references: [id])
+
+  @@unique([hopitalId, annee, categorieId])
+  @@map("lignes_budget")
 }

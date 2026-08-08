@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CreerCategorieDto,
   CreerCompteDto,
+  LigneBudgetDto,
   MouvementDto,
   TransfertDto,
 } from './tresorerie.dto';
@@ -197,6 +198,148 @@ export class TresorerieService {
       },
       select: { id: true, type: true, montant: true },
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Controle de gestion : lignes de budget d'une annee, realise calcule
+  // depuis les mouvements. Les categories consommees sans budget apparaissent
+  // avec un prevu de zero.
+  // --------------------------------------------------------------------------
+  async budget(hopitalId: string, annee: number) {
+    const lignes = await this.prisma.ligneBudget.findMany({
+      where: { hopitalId, annee },
+      include: { categorie: { select: { id: true, nom: true, sens: true } } },
+    });
+
+    const debut = new Date(Date.UTC(annee, 0, 1));
+    const fin = new Date(Date.UTC(annee, 11, 31, 23, 59, 59));
+    const realises = await this.prisma.mouvementTresorerie.groupBy({
+      by: ['categorieId'],
+      where: {
+        hopitalId,
+        categorieId: { not: null },
+        dateMouvement: { gte: debut, lte: fin },
+      },
+      _sum: { montant: true },
+    });
+    const realiseDe = new Map<string, number>();
+    for (const r of realises) {
+      if (r.categorieId) {
+        realiseDe.set(r.categorieId, Number(r._sum.montant ?? 0));
+      }
+    }
+
+    const sortie = lignes.map((l) => {
+      const prevu = Number(l.montantPrevu);
+      const realise = realiseDe.get(l.categorieId) ?? 0;
+      return {
+        id: l.id as string | null,
+        categorie: l.categorie,
+        prevu,
+        realise,
+        ecart: prevu - realise,
+        consomme: prevu > 0 ? (realise / prevu) * 100 : realise > 0 ? 100 : 0,
+      };
+    });
+
+    // Categories consommees sans ligne de budget
+    const budgetees = new Set(lignes.map((l) => l.categorieId));
+    const horsBudget = [...realiseDe.entries()].filter(
+      ([id, montant]) => !budgetees.has(id) && montant > 0,
+    );
+    if (horsBudget.length > 0) {
+      const categories = await this.prisma.categorieTresorerie.findMany({
+        where: { id: { in: horsBudget.map(([id]) => id) } },
+        select: { id: true, nom: true, sens: true },
+      });
+      for (const c of categories) {
+        const realise = realiseDe.get(c.id) ?? 0;
+        sortie.push({
+          id: null,
+          categorie: c,
+          prevu: 0,
+          realise,
+          ecart: -realise,
+          consomme: 100,
+        });
+      }
+    }
+
+    const somme = (
+      sens: 'recette' | 'depense',
+      champ: 'prevu' | 'realise',
+    ) =>
+      sortie
+        .filter((l) => l.categorie.sens === sens)
+        .reduce((s, l) => s + l[champ], 0);
+
+    const recettesPrevu = somme('recette', 'prevu');
+    const recettesRealise = somme('recette', 'realise');
+    const depensesPrevu = somme('depense', 'prevu');
+    const depensesRealise = somme('depense', 'realise');
+
+    return {
+      annee,
+      lignes: sortie.sort((a, b) =>
+        a.categorie.sens === b.categorie.sens
+          ? a.categorie.nom.localeCompare(b.categorie.nom)
+          : a.categorie.sens === 'recette'
+            ? -1
+            : 1,
+      ),
+      totaux: {
+        recettesPrevu,
+        recettesRealise,
+        depensesPrevu,
+        depensesRealise,
+        execution: depensesPrevu > 0 ? (depensesRealise / depensesPrevu) * 100 : 0,
+        realisation:
+          recettesPrevu > 0 ? (recettesRealise / recettesPrevu) * 100 : 0,
+        marge: recettesRealise - depensesRealise,
+        depassements: sortie.filter(
+          (l) => l.categorie.sens === 'depense' && l.realise > l.prevu,
+        ).length,
+      },
+    };
+  }
+
+  async definirLigneBudget(hopitalId: string, dto: LigneBudgetDto) {
+    const categorie = await this.prisma.categorieTresorerie.findFirst({
+      where: { id: dto.categorieId, hopitalId },
+      select: { id: true },
+    });
+    if (!categorie) throw new NotFoundException('Catégorie introuvable');
+
+    const existante = await this.prisma.ligneBudget.findFirst({
+      where: { hopitalId, annee: dto.annee, categorieId: dto.categorieId },
+      select: { id: true },
+    });
+    if (existante) {
+      return this.prisma.ligneBudget.update({
+        where: { id: existante.id },
+        data: { montantPrevu: dto.montantPrevu },
+        select: { id: true },
+      });
+    }
+    return this.prisma.ligneBudget.create({
+      data: {
+        hopitalId,
+        annee: dto.annee,
+        categorieId: dto.categorieId,
+        montantPrevu: dto.montantPrevu,
+      },
+      select: { id: true },
+    });
+  }
+
+  async supprimerLigneBudget(hopitalId: string, ligneId: string) {
+    const l = await this.prisma.ligneBudget.findFirst({
+      where: { id: ligneId, hopitalId },
+      select: { id: true },
+    });
+    if (!l) throw new NotFoundException('Ligne de budget introuvable');
+    await this.prisma.ligneBudget.delete({ where: { id: l.id } });
+    return { id: l.id };
   }
 
   // --------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import { TresorerieService } from './tresorerie.service';
 import {
   CreerCategorieDto,
   CreerCompteDto,
+  LigneBudgetDto,
   MouvementDto,
   TransfertDto,
 } from './tresorerie.dto';
@@ -77,5 +78,24 @@ export class TresorerieController {
   @Permissions('tresorerie.gerer')
   supprimer(@Req() req: any, @Param('id') id: string) {
     return this.service.supprimer(req.user.hopitalId, id);
+  }
+
+  @Get('budget')
+  @Permissions('tresorerie.lire')
+  budget(@Req() req: any, @Query('annee') annee?: string) {
+    const a = Number(annee) || new Date().getFullYear();
+    return this.service.budget(req.user.hopitalId, a);
+  }
+
+  @Post('budget')
+  @Permissions('tresorerie.gerer')
+  definirLigneBudget(@Req() req: any, @Body() dto: LigneBudgetDto) {
+    return this.service.definirLigneBudget(req.user.hopitalId, dto);
+  }
+
+  @Delete('budget/:id')
+  @Permissions('tresorerie.gerer')
+  supprimerLigneBudget(@Req() req: any, @Param('id') id: string) {
+    return this.service.supprimerLigneBudget(req.user.hopitalId, id);
   }
 }

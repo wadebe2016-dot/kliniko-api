@@ -1,5 +1,6 @@
 import {
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -55,6 +56,19 @@ export class MouvementDto {
   @IsOptional()
   @IsString()
   date?: string;
+}
+
+export class LigneBudgetDto {
+  @IsInt()
+  @Min(2020)
+  annee: number;
+
+  @Matches(FORME_UUID, { message: 'categorieId : identifiant invalide' })
+  categorieId: string;
+
+  @IsNumber()
+  @Min(0)
+  montantPrevu: number;
 }
 
 export class TransfertDto {
