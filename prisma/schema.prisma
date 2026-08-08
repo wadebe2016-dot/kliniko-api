@@ -117,6 +117,7 @@ model Hopital {
   categorieTresoreries  CategorieTresorerie[]
   mouvementTresoreries  MouvementTresorerie[]
   ligneBudgets          LigneBudget[]
+  centreCouts           CentreCout[]
 
   @@map("hopitaux")
 }
@@ -994,6 +995,7 @@ model MouvementTresorerie {
   compteId      String                  @map("compte_id") @db.Uuid
   compteDestId  String?                 @map("compte_dest_id") @db.Uuid
   categorieId   String?                 @map("categorie_id") @db.Uuid
+  centreCoutId  String?                 @map("centre_cout_id") @db.Uuid
   libelle       String
   beneficiaire  String?
   montant       Decimal                 @db.Decimal(14, 2)
@@ -1005,6 +1007,7 @@ model MouvementTresorerie {
   compte     CompteTresorerie     @relation("compte", fields: [compteId], references: [id])
   compteDest CompteTresorerie?    @relation("compteDest", fields: [compteDestId], references: [id])
   categorie  CategorieTresorerie? @relation(fields: [categorieId], references: [id])
+  centreCout CentreCout?          @relation(fields: [centreCoutId], references: [id])
   facture    Facture?             @relation(fields: [factureId], references: [id])
 
   @@index([hopitalId, dateMouvement])
@@ -1026,4 +1029,21 @@ model LigneBudget {
 
   @@unique([hopitalId, annee, categorieId])
   @@map("lignes_budget")
+}
+
+// Analytique : les centres de cout de la clinique (services). Chaque
+// mouvement peut etre impute a un centre ; le reste est "non impute".
+model CentreCout {
+  id        String   @id @default(uuid()) @db.Uuid
+  hopitalId String   @map("hopital_id") @db.Uuid
+  code      String
+  nom       String
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital    Hopital               @relation(fields: [hopitalId], references: [id])
+  mouvements MouvementTresorerie[]
+
+  @@unique([hopitalId, code])
+  @@map("centres_cout")
 }

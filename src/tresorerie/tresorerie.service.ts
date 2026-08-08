@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreerCategorieDto,
+  CreerCentreDto,
   CreerCompteDto,
   LigneBudgetDto,
   MouvementDto,
@@ -159,12 +160,20 @@ export class TresorerieService {
         );
       }
     }
+    if (dto.centreCoutId) {
+      const centre = await this.prisma.centreCout.findFirst({
+        where: { id: dto.centreCoutId, hopitalId },
+        select: { id: true },
+      });
+      if (!centre) throw new NotFoundException('Centre de coût introuvable');
+    }
     return this.prisma.mouvementTresorerie.create({
       data: {
         hopitalId,
         type,
         compteId: dto.compteId,
         categorieId: dto.categorieId ?? null,
+        centreCoutId: dto.centreCoutId ?? null,
         libelle: dto.libelle,
         beneficiaire: dto.beneficiaire ?? null,
         montant: dto.montant,
@@ -172,6 +181,134 @@ export class TresorerieService {
       },
       select: { id: true, type: true, montant: true },
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Analytique : depenses, recettes et marge par centre de cout, avec le
+  // cout par patient. Les mouvements sans centre forment le "Non impute".
+  // --------------------------------------------------------------------------
+  async centres(hopitalId: string) {
+    return this.prisma.centreCout.findMany({
+      where: { hopitalId, actif: true },
+      select: { id: true, code: true, nom: true },
+      orderBy: { code: 'asc' },
+    });
+  }
+
+  async creerCentre(hopitalId: string, dto: CreerCentreDto) {
+    const code = dto.code.toUpperCase();
+    const doublon = await this.prisma.centreCout.findFirst({
+      where: { hopitalId, code },
+      select: { id: true },
+    });
+    if (doublon) {
+      throw new BadRequestException(`Le centre ${code} existe déjà`);
+    }
+    return this.prisma.centreCout.create({
+      data: { hopitalId, code, nom: dto.nom },
+      select: { id: true, code: true, nom: true },
+    });
+  }
+
+  async analytique(hopitalId: string, du?: string, au?: string) {
+    const centres = await this.prisma.centreCout.findMany({
+      where: { hopitalId },
+      select: { id: true, code: true, nom: true, actif: true },
+      orderBy: { code: 'asc' },
+    });
+
+    const grp = await this.prisma.mouvementTresorerie.groupBy({
+      by: ['centreCoutId', 'type'],
+      where: {
+        hopitalId,
+        type: { not: 'transfert' },
+        ...(du || au
+          ? {
+              dateMouvement: {
+                ...(du ? { gte: new Date(du) } : {}),
+                ...(au ? { lte: new Date(au) } : {}),
+              },
+            }
+          : {}),
+      },
+      _sum: { montant: true },
+      _count: { _all: true },
+    });
+
+    const parCentre = new Map<
+      string,
+      { depenses: number; recettes: number; ecritures: number }
+    >();
+    const cle = (id: string | null) => id ?? 'NON_IMPUTE';
+    for (const g of grp) {
+      const e = parCentre.get(cle(g.centreCoutId)) ?? {
+        depenses: 0,
+        recettes: 0,
+        ecritures: 0,
+      };
+      const somme = Number(g._sum.montant ?? 0);
+      if (g.type === 'depense') e.depenses += somme;
+      else e.recettes += somme;
+      e.ecritures += g._count._all;
+      parCentre.set(cle(g.centreCoutId), e);
+    }
+
+    const nbPatients = await this.prisma.patient.count({
+      where: { hopitalId, deletedAt: null },
+    });
+
+    const totalDepenses = [...parCentre.values()].reduce(
+      (s, e) => s + e.depenses,
+      0,
+    );
+
+    const ligne = (
+      code: string | null,
+      nom: string,
+      id: string | null,
+      actif: boolean,
+    ) => {
+      const e = parCentre.get(cle(id)) ?? {
+        depenses: 0,
+        recettes: 0,
+        ecritures: 0,
+      };
+      return {
+        id,
+        code,
+        nom,
+        actif,
+        depenses: e.depenses,
+        recettes: e.recettes,
+        marge: e.recettes - e.depenses,
+        ecritures: e.ecritures,
+        part: totalDepenses > 0 ? (e.depenses / totalDepenses) * 100 : 0,
+        coutParPatient: nbPatients > 0 ? Math.round(e.depenses / nbPatients) : 0,
+      };
+    };
+
+    const lignes = centres.map((c) => ligne(c.code, c.nom, c.id, c.actif));
+    const nonImpute = ligne(null, 'Non imputé', null, true);
+
+    const depCentre = (code: string) =>
+      lignes.find((l) => l.code === code)?.depenses ?? 0;
+
+    return {
+      nbPatients,
+      lignes,
+      nonImpute,
+      totaux: {
+        depenses: totalDepenses,
+        recettes: [...parCentre.values()].reduce((s, e) => s + e.recettes, 0),
+        ecritures: [...parCentre.values()].reduce((s, e) => s + e.ecritures, 0),
+        coutParPatient:
+          nbPatients > 0 ? Math.round(totalDepenses / nbPatients) : 0,
+        coutMedicalParPatient:
+          nbPatients > 0 ? Math.round(depCentre('MED') / nbPatients) : 0,
+        coutAdminParPatient:
+          nbPatients > 0 ? Math.round(depCentre('ADM') / nbPatients) : 0,
+      },
+    };
   }
 
   // --------------------------------------------------------------------------

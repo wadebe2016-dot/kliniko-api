@@ -12,6 +12,7 @@ import { Permissions } from '../auth/permissions.decorator';
 import { TresorerieService } from './tresorerie.service';
 import {
   CreerCategorieDto,
+  CreerCentreDto,
   CreerCompteDto,
   LigneBudgetDto,
   MouvementDto,
@@ -78,6 +79,28 @@ export class TresorerieController {
   @Permissions('tresorerie.gerer')
   supprimer(@Req() req: any, @Param('id') id: string) {
     return this.service.supprimer(req.user.hopitalId, id);
+  }
+
+  @Get('centres')
+  @Permissions('tresorerie.lire')
+  centres(@Req() req: any) {
+    return this.service.centres(req.user.hopitalId);
+  }
+
+  @Post('centres')
+  @Permissions('tresorerie.gerer')
+  creerCentre(@Req() req: any, @Body() dto: CreerCentreDto) {
+    return this.service.creerCentre(req.user.hopitalId, dto);
+  }
+
+  @Get('analytique')
+  @Permissions('tresorerie.lire')
+  analytique(
+    @Req() req: any,
+    @Query('du') du?: string,
+    @Query('au') au?: string,
+  ) {
+    return this.service.analytique(req.user.hopitalId, du, au);
   }
 
   @Get('budget')

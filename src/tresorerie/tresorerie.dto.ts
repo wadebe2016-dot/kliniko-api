@@ -40,6 +40,10 @@ export class MouvementDto {
   @Matches(FORME_UUID, { message: 'categorieId : identifiant invalide' })
   categorieId?: string;
 
+  @IsOptional()
+  @Matches(FORME_UUID, { message: 'centreCoutId : identifiant invalide' })
+  centreCoutId?: string;
+
   @IsString()
   @IsNotEmpty({ message: 'Le libellé est obligatoire' })
   libelle: string;
@@ -56,6 +60,16 @@ export class MouvementDto {
   @IsOptional()
   @IsString()
   date?: string;
+}
+
+export class CreerCentreDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Le code est obligatoire' })
+  code: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Le nom du centre est obligatoire' })
+  nom: string;
 }
 
 export class LigneBudgetDto {

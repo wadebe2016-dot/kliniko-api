@@ -220,12 +220,18 @@ export class FacturesService {
           where: { hopitalId, nom: 'Recettes de soins' },
           select: { id: true },
         });
+        // Impute par defaut au centre de cout "Soins medicaux"
+        const centre = await tx.centreCout.findFirst({
+          where: { hopitalId, code: 'MED' },
+          select: { id: true },
+        });
         await tx.mouvementTresorerie.create({
           data: {
             hopitalId,
             type: 'recette',
             compteId: compte.id,
             categorieId: categorie?.id ?? null,
+            centreCoutId: centre?.id ?? null,
             libelle: `Encaissement ${facture.numero}`,
             beneficiaire: `${facture.patient.nom} ${facture.patient.prenom ?? ''}`.trim(),
             montant: dto.montant,
