@@ -14,6 +14,7 @@ import { DisponibilitesModule } from './disponibilites/disponibilites.module';
 import { PublicModule } from './public/public.module';
 import { ComptesModule } from './comptes/comptes.module';
 import { StatsModule } from './stats/stats.module';
+import { PharmacieModule } from './pharmacie/pharmacie.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -33,6 +34,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     PublicModule,
     ComptesModule,
     StatsModule,
+    PharmacieModule,
   ],
   controllers: [AppController],
   providers: [
