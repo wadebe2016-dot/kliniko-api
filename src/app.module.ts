@@ -30,8 +30,11 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 
+import { PreConsultationsModule } from './preconsultations/preconsultations.module';
+
 @Module({
   imports: [
+    PreConsultationsModule,
     PrismaModule,
     AuthModule,
     PatientsModule,

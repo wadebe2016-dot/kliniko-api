@@ -126,6 +126,7 @@ model Hopital {
   parametresConges      ParametresConges?
   demandeConges         DemandeConge[]
   assurances            Assurance[]
+  preConsultations      PreConsultation[]
 
   @@map("hopitaux")
 }
@@ -149,10 +150,11 @@ model Utilisateur {
   deletedAt         DateTime?  @map("deleted_at") @db.Timestamptz
   rowVersion        Int        @default(0) @map("row_version")
 
-  hopital    Hopital           @relation(fields: [hopitalId], references: [id])
-  roles      UtilisateurRole[]
-  praticiens Praticien[]
-  audit      JournalAudit[]
+  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
+  roles            UtilisateurRole[]
+  praticiens       Praticien[]
+  audit            JournalAudit[]
+  preConsultations PreConsultation[]
 
   @@unique([hopitalId, email])
   @@map("utilisateurs")
@@ -334,6 +336,7 @@ model Patient {
   ordonnances           Ordonnance[]
   comptePatientDossiers ComptePatientDossier[]
   hospitalisations      Hospitalisation[]
+  preConsultations      PreConsultation[]
 
   @@unique([hopitalId, numeroDossier])
   @@index([hopitalId, nom])
@@ -370,12 +373,13 @@ model RendezVous {
   deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz
   rowVersion   Int            @default(0) @map("row_version")
 
-  hopital       Hopital        @relation(fields: [hopitalId], references: [id])
-  patient       Patient        @relation(fields: [patientId], references: [id])
-  praticien     Praticien?     @relation(fields: [praticienId], references: [id])
-  service       Service?       @relation(fields: [serviceId], references: [id])
-  consultations Consultation[]
-  rappels       Rappel[]
+  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
+  patient          Patient           @relation(fields: [patientId], references: [id])
+  praticien        Praticien?        @relation(fields: [praticienId], references: [id])
+  service          Service?          @relation(fields: [serviceId], references: [id])
+  consultations    Consultation[]
+  rappels          Rappel[]
+  preConsultations PreConsultation[]
 
   @@index([hopitalId, praticienId, debut])
   @@index([hopitalId, patientId])
@@ -1244,4 +1248,39 @@ model Assurance {
 
   @@unique([hopitalId, nom])
   @@map("assurances")
+}
+
+// ------------------------- Pre-consultations --------------------------------
+// Les constantes (tension, temperature, poids...) prises par l'infirmiere
+// avant la consultation. Jamais modifiees apres coup : on en reprend une.
+// Le rendez-vous est optionnel : un patient de passage en a une aussi.
+
+model PreConsultation {
+  id            String    @id @default(uuid()) @db.Uuid
+  hopitalId     String    @map("hopital_id") @db.Uuid
+  patientId     String    @map("patient_id") @db.Uuid
+  rendezVousId  String?   @map("rendez_vous_id") @db.Uuid
+  utilisateurId String?   @map("utilisateur_id") @db.Uuid
+  datePrise     DateTime  @default(now()) @map("date_prise") @db.Timestamptz
+  tensionSys    Int?      @map("tension_sys")
+  tensionDia    Int?      @map("tension_dia")
+  temperature   Decimal?  @db.Decimal(4, 1)
+  poids         Decimal?  @db.Decimal(5, 1)
+  taille        Int?
+  pouls         Int?
+  saturation    Int?
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  rowVersion    Int       @default(0) @map("row_version")
+
+  hopital     Hopital      @relation(fields: [hopitalId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  rendezVous  RendezVous?  @relation(fields: [rendezVousId], references: [id])
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
+
+  @@index([hopitalId, patientId, datePrise])
+  @@index([hopitalId, datePrise])
+  @@map("pre_consultations")
 }
