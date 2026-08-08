@@ -936,6 +936,8 @@ model Personnel {
   adresse           String?
   cni               String?
   numeroCnps        String?   @map("numero_cnps")
+  niu               String?
+  situationFamille  String?   @map("situation_famille")
   typeContrat       String?   @map("type_contrat")
   dateEmbauche      DateTime? @map("date_embauche") @db.Date
   dateFinContrat    DateTime? @map("date_fin_contrat") @db.Date

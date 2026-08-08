@@ -31,7 +31,18 @@ const IRPP_TRANCHES_DEFAUT = [
 
 const AVEC_PERSONNEL = {
   personnel: {
-    select: { nom: true, prenom: true, fonction: true, matricule: true },
+    select: {
+      nom: true,
+      prenom: true,
+      fonction: true,
+      matricule: true,
+      service: true,
+      typeContrat: true,
+      dateEmbauche: true,
+      numeroCnps: true,
+      niu: true,
+      situationFamille: true,
+    },
   },
 };
 
@@ -231,18 +242,7 @@ export class PaieService {
   async detail(hopitalId: string, id: string) {
     const b = await this.prisma.bulletinPaie.findFirst({
       where: { id, hopitalId },
-      include: {
-        personnel: {
-          select: {
-            nom: true,
-            prenom: true,
-            fonction: true,
-            matricule: true,
-            service: true,
-            typeContrat: true,
-          },
-        },
-      },
+      include: AVEC_PERSONNEL,
     });
     if (!b) throw new NotFoundException('Bulletin introuvable');
     return this.presenterBulletin(b);

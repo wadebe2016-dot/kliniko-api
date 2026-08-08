@@ -232,6 +232,11 @@ export class PersonnelService {
         cni: dto.cni !== undefined ? dto.cni || null : undefined,
         numeroCnps:
           dto.numeroCnps !== undefined ? dto.numeroCnps || null : undefined,
+        niu: dto.niu !== undefined ? dto.niu || null : undefined,
+        situationFamille:
+          dto.situationFamille !== undefined
+            ? dto.situationFamille || null
+            : undefined,
         typeContrat:
           dto.typeContrat !== undefined ? dto.typeContrat || null : undefined,
         dateEmbauche:

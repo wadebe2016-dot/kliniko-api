@@ -98,6 +98,16 @@ export class ModifierRhDto {
   @IsString()
   numeroCnps?: string;
 
+  // Numero d'identifiant unique (contribuable)
+  @IsOptional()
+  @IsString()
+  niu?: string;
+
+  // Celibataire, Marie(e), Divorce(e), Veuf(ve)
+  @IsOptional()
+  @IsString()
+  situationFamille?: string;
+
   // CDI, CDD, Vacataire, Stage...
   @IsOptional()
   @IsString()
