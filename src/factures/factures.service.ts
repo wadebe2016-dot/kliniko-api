@@ -6,6 +6,10 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { EncaisserDto } from './dto/encaisser.dto';
+import {
+  AnnulerFactureDto,
+  ModifierLignesDto,
+} from './dto/modifier-facture.dto';
 
 const AVEC_PATIENT = {
   patient: { select: { nom: true, prenom: true, numeroDossier: true } },
@@ -208,6 +212,96 @@ export class FacturesService {
           paiements: { where: { deletedAt: null } },
         },
       });
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Modifier les lignes d'une facture : uniquement ouverte et sans aucun
+  // paiement. Quantite 0 = retirer la ligne. Le total est recalcule.
+  // --------------------------------------------------------------------------
+  async modifierLignes(
+    hopitalId: string,
+    factureId: string,
+    dto: ModifierLignesDto,
+  ) {
+    const facture = await this.findOne(hopitalId, factureId);
+
+    if (facture.statut === 'annulee') {
+      throw new BadRequestException('Cette facture est annulee');
+    }
+    if (facture.statut !== 'ouverte' || Number(facture.montantPaye) > 0) {
+      throw new BadRequestException(
+        'Une facture ayant recu un paiement ne peut plus etre modifiee',
+      );
+    }
+
+    const parId = new Map(facture.lignes.map((l) => [l.id, l]));
+    for (const ligne of dto.lignes) {
+      if (!parId.has(ligne.ligneId)) {
+        throw new BadRequestException(
+          `La ligne ${ligne.ligneId} n'appartient pas a cette facture`,
+        );
+      }
+    }
+
+    const conservees = dto.lignes.filter((l) => l.quantite > 0);
+    if (conservees.length === 0) {
+      throw new BadRequestException(
+        'Une facture doit garder au moins une ligne : annulez-la plutot',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      let montantTotal = 0;
+      for (const ligne of dto.lignes) {
+        const existante = parId.get(ligne.ligneId)!;
+        if (ligne.quantite === 0) {
+          await tx.ligneFacture.delete({ where: { id: ligne.ligneId } });
+        } else {
+          const montant = ligne.quantite * Number(existante.prixUnitaire);
+          montantTotal += montant;
+          await tx.ligneFacture.update({
+            where: { id: ligne.ligneId },
+            data: { quantite: ligne.quantite, montant },
+          });
+        }
+      }
+      return tx.facture.update({
+        where: { id: factureId },
+        data: { montantTotal },
+        include: {
+          ...AVEC_PATIENT,
+          lignes: true,
+          paiements: { where: { deletedAt: null } },
+        },
+      });
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Annuler une facture : motivee, uniquement sans aucun paiement.
+  // La facture reste dans l'historique, jamais supprimee.
+  // --------------------------------------------------------------------------
+  async annuler(hopitalId: string, factureId: string, dto: AnnulerFactureDto) {
+    const facture = await this.findOne(hopitalId, factureId);
+
+    if (facture.statut === 'annulee') {
+      throw new BadRequestException('Cette facture est deja annulee');
+    }
+    if (Number(facture.montantPaye) > 0) {
+      throw new BadRequestException(
+        'Une facture ayant recu un paiement ne peut pas etre annulee',
+      );
+    }
+
+    return this.prisma.facture.update({
+      where: { id: factureId },
+      data: { statut: 'annulee', motifAnnulation: dto.motif },
+      include: {
+        ...AVEC_PATIENT,
+        lignes: true,
+        paiements: { where: { deletedAt: null } },
+      },
     });
   }
 }

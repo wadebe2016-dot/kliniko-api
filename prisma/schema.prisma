@@ -388,20 +388,21 @@ model Consultation {
 // ---------------------------- Facturation -----------------------------------
 
 model Facture {
-  id             String        @id @default(uuid()) @db.Uuid
-  hopitalId      String        @map("hopital_id") @db.Uuid
-  patientId      String        @map("patient_id") @db.Uuid
-  consultationId String?       @map("consultation_id") @db.Uuid
-  numero         String
-  dateFacture    DateTime      @default(now()) @map("date_facture") @db.Date
-  montantTotal   Decimal       @default(0) @map("montant_total") @db.Decimal(12, 2)
-  montantPaye    Decimal       @default(0) @map("montant_paye") @db.Decimal(12, 2)
-  devise         String        @default("XAF") @db.Char(3)
-  statut         StatutFacture @default(ouverte)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
-  rowVersion     Int           @default(0) @map("row_version")
+  id              String        @id @default(uuid()) @db.Uuid
+  hopitalId       String        @map("hopital_id") @db.Uuid
+  patientId       String        @map("patient_id") @db.Uuid
+  consultationId  String?       @map("consultation_id") @db.Uuid
+  numero          String
+  dateFacture     DateTime      @default(now()) @map("date_facture") @db.Date
+  montantTotal    Decimal       @default(0) @map("montant_total") @db.Decimal(12, 2)
+  montantPaye     Decimal       @default(0) @map("montant_paye") @db.Decimal(12, 2)
+  devise          String        @default("XAF") @db.Char(3)
+  statut          StatutFacture @default(ouverte)
+  motifAnnulation String?       @map("motif_annulation")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
+  rowVersion      Int           @default(0) @map("row_version")
 
   hopital          Hopital           @relation(fields: [hopitalId], references: [id])
   patient          Patient           @relation(fields: [patientId], references: [id])
