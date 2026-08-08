@@ -283,6 +283,7 @@ model Acte {
   hopital       Hopital        @relation(fields: [hopitalId], references: [id])
   tarifs        Tarif[]
   lignesFacture LigneFacture[]
+  rendezVous    RendezVous[]
 
   @@unique([hopitalId, code])
   @@map("actes")
@@ -342,24 +343,28 @@ model Patient {
 // --------------------------- Rendez-vous ------------------------------------
 
 model RendezVous {
-  id          String         @id @default(uuid()) @db.Uuid
-  hopitalId   String         @map("hopital_id") @db.Uuid
-  patientId   String         @map("patient_id") @db.Uuid
-  praticienId String?        @map("praticien_id") @db.Uuid
-  serviceId   String?        @map("service_id") @db.Uuid
-  debut       DateTime       @db.Timestamptz
-  fin         DateTime?      @db.Timestamptz
-  statut      StatutRdv      @default(planifie)
-  origine     OrigineRdv     @default(clinique)
-  compteId    String?        @map("compte_id") @db.Uuid
-  expireA     DateTime?      @map("expire_a") @db.Timestamptz
-  motifRefus  String?        @map("motif_refus")
-  compte      ComptePatient? @relation(fields: [compteId], references: [id])
-  motif       String?
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz
-  rowVersion  Int            @default(0) @map("row_version")
+  id           String         @id @default(uuid()) @db.Uuid
+  hopitalId    String         @map("hopital_id") @db.Uuid
+  patientId    String         @map("patient_id") @db.Uuid
+  praticienId  String?        @map("praticien_id") @db.Uuid
+  serviceId    String?        @map("service_id") @db.Uuid
+  debut        DateTime       @db.Timestamptz
+  fin          DateTime?      @db.Timestamptz
+  statut       StatutRdv      @default(planifie)
+  origine      OrigineRdv     @default(clinique)
+  compteId     String?        @map("compte_id") @db.Uuid
+  expireA      DateTime?      @map("expire_a") @db.Timestamptz
+  motifRefus   String?        @map("motif_refus")
+  acteId       String?        @map("acte_id") @db.Uuid
+  modePaiement String?        @map("mode_paiement")
+  montantPrevu Decimal?       @map("montant_prevu") @db.Decimal(12, 2)
+  acte         Acte?          @relation(fields: [acteId], references: [id])
+  compte       ComptePatient? @relation(fields: [compteId], references: [id])
+  motif        String?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz
+  rowVersion   Int            @default(0) @map("row_version")
 
   hopital       Hopital        @relation(fields: [hopitalId], references: [id])
   patient       Patient        @relation(fields: [patientId], references: [id])
