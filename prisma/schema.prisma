@@ -414,7 +414,7 @@ model Consultation {
 // ---------------------------- Facturation -----------------------------------
 
 model Facture {
-  rendezVousId    String?       @unique
+  rendezVousId    String?       @unique @db.Uuid
   rendezVous      RendezVous?   @relation(fields: [rendezVousId], references: [id])
   id              String        @id @default(uuid()) @db.Uuid
   hopitalId       String        @map("hopital_id") @db.Uuid
