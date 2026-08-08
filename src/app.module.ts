@@ -20,6 +20,7 @@ import { VerificationModule } from './verification/verification.module';
 import { OrdonnancesPatientModule } from './ordonnances-patient/ordonnances-patient.module';
 import { ConsommablesModule } from './consommables/consommables.module';
 import { TarifsModule } from './tarifs/tarifs.module';
+import { PatrimoineModule } from './patrimoine/patrimoine.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -45,6 +46,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     OrdonnancesPatientModule,
     ConsommablesModule,
     TarifsModule,
+    PatrimoineModule,
   ],
   controllers: [AppController],
   providers: [

@@ -110,6 +110,8 @@ model Hopital {
   hospitalisations      Hospitalisation[]
   consommables          Consommable[]
   mouvementConsommables MouvementConsommable[]
+  actifs                Actif[]
+  evenementActifs       EvenementActif[]
 
   @@map("hopitaux")
 }
@@ -829,4 +831,50 @@ model MouvementConsommable {
 
   @@index([hopitalId, consommableId, createdAt])
   @@map("mouvements_consommables")
+}
+
+// ------------------------------ Patrimoine ----------------------------------
+// Les actifs de la clinique : equipements, vehicules, batiments...
+// Chaque changement d'etat est trace dans un journal d'evenements.
+
+enum EtatActif {
+  en_service
+  en_maintenance
+  en_panne
+  reforme
+}
+
+model Actif {
+  id                String    @id @default(uuid()) @db.Uuid
+  hopitalId         String    @map("hopital_id") @db.Uuid
+  code              String?
+  designation       String
+  categorie         String?
+  localisation      String?
+  dateAcquisition   DateTime? @map("date_acquisition") @db.Date
+  valeurAcquisition Decimal?  @map("valeur_acquisition") @db.Decimal(14, 2)
+  etat              EtatActif @default(en_service)
+  notes             String?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital    Hopital          @relation(fields: [hopitalId], references: [id])
+  evenements EvenementActif[]
+
+  @@index([hopitalId, etat])
+  @@map("actifs")
+}
+
+model EvenementActif {
+  id        String   @id @default(uuid()) @db.Uuid
+  hopitalId String   @map("hopital_id") @db.Uuid
+  actifId   String   @map("actif_id") @db.Uuid
+  type      String
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  actif   Actif   @relation(fields: [actifId], references: [id])
+
+  @@index([hopitalId, actifId, createdAt])
+  @@map("evenements_actifs")
 }
