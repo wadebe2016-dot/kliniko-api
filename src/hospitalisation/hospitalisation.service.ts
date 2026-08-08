@@ -8,6 +8,7 @@ import {
   AdmissionDto,
   AnnulationSejourDto,
   CreerChambreDto,
+  ModifierChambreDto,
   SortieDto,
 } from './dto/hospitalisation.dto';
 
@@ -124,6 +125,112 @@ export class HospitalisationService {
         },
       },
       select: { id: true, numero: true },
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Modifier une chambre. Augmenter nbLits cree des lits ; diminuer retire
+  // les derniers lits, uniquement s'ils n'ont jamais porte de sejour.
+  // --------------------------------------------------------------------------
+  async modifierChambre(
+    hopitalId: string,
+    chambreId: string,
+    dto: ModifierChambreDto,
+  ) {
+    const chambre = await this.prisma.chambre.findFirst({
+      where: { id: chambreId, hopitalId },
+      select: {
+        id: true,
+        numero: true,
+        lits: {
+          select: {
+            id: true,
+            numero: true,
+            _count: { select: { sejours: true } },
+          },
+        },
+      },
+    });
+    if (!chambre) throw new NotFoundException('Chambre introuvable');
+
+    if (dto.numero && dto.numero !== chambre.numero) {
+      const doublon = await this.prisma.chambre.findFirst({
+        where: { hopitalId, numero: dto.numero, id: { not: chambreId } },
+        select: { id: true },
+      });
+      if (doublon) {
+        throw new BadRequestException(`La chambre ${dto.numero} existe deja`);
+      }
+    }
+
+    await this.prisma.chambre.update({
+      where: { id: chambre.id },
+      data: {
+        numero: dto.numero ?? undefined,
+        categorie:
+          dto.categorie !== undefined ? dto.categorie || null : undefined,
+        tarifJournalier:
+          dto.tarifJournalier !== undefined ? dto.tarifJournalier : undefined,
+      },
+    });
+
+    if (dto.nbLits !== undefined) {
+      const lits = [...chambre.lits].sort(
+        (a, b) => (Number(a.numero) || 0) - (Number(b.numero) || 0),
+      );
+      if (dto.nbLits > lits.length) {
+        const max = lits.reduce(
+          (m, l) => Math.max(m, Number(l.numero) || 0),
+          0,
+        );
+        await this.prisma.lit.createMany({
+          data: Array.from({ length: dto.nbLits - lits.length }, (_, i) => ({
+            chambreId: chambre.id,
+            numero: String(max + i + 1),
+          })),
+        });
+      } else if (dto.nbLits < lits.length) {
+        const aRetirer = lits.slice(dto.nbLits);
+        for (const lit of aRetirer) {
+          if (lit._count.sejours > 0) {
+            throw new BadRequestException(
+              `Le lit ${lit.numero} a un historique de sejours : impossible de le retirer`,
+            );
+          }
+        }
+        await this.prisma.lit.deleteMany({
+          where: { id: { in: aRetirer.map((l) => l.id) } },
+        });
+      }
+    }
+
+    return { id: chambre.id };
+  }
+
+  // --------------------------------------------------------------------------
+  // Supprimer une chambre : uniquement si aucun sejour, meme ancien,
+  // n'a jamais occupe ses lits. Sinon, la modifier.
+  // --------------------------------------------------------------------------
+  async supprimerChambre(hopitalId: string, chambreId: string) {
+    const chambre = await this.prisma.chambre.findFirst({
+      where: { id: chambreId, hopitalId },
+      select: { id: true, numero: true, lits: { select: { id: true } } },
+    });
+    if (!chambre) throw new NotFoundException('Chambre introuvable');
+
+    const sejours = await this.prisma.hospitalisation.count({
+      where: { litId: { in: chambre.lits.map((l) => l.id) } },
+    });
+    if (sejours > 0) {
+      throw new BadRequestException(
+        `La chambre ${chambre.numero} a un historique de sejours : elle ne peut pas etre supprimee`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.lit.deleteMany({ where: { chambreId: chambre.id } });
+      await tx.chambre.delete({ where: { id: chambre.id } });
+      return { id: chambre.id };
     });
   }
 

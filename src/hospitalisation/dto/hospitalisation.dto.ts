@@ -34,6 +34,31 @@ export class CreerChambreDto {
   nbLits: number;
 }
 
+export class ModifierChambreDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'Le numero de chambre ne peut pas etre vide' })
+  numero?: string;
+
+  // Chaine vide = effacer la categorie
+  @IsOptional()
+  @IsString()
+  categorie?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tarifJournalier?: number;
+
+  // Augmenter cree des lits ; diminuer retire les derniers lits,
+  // uniquement s'ils n'ont jamais servi.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  nbLits?: number;
+}
+
 export class AdmissionDto {
   @Matches(FORME_UUID, { message: 'patientId : identifiant invalide' })
   patientId: string;

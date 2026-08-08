@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { Permissions } from '../auth/permissions.decorator';
 import { HospitalisationService } from './hospitalisation.service';
 import {
   AdmissionDto,
   AnnulationSejourDto,
   CreerChambreDto,
+  ModifierChambreDto,
   SortieDto,
 } from './dto/hospitalisation.dto';
 
@@ -28,6 +38,22 @@ export class HospitalisationController {
   @Permissions('hospitalisation.gerer')
   creerChambre(@Req() req: any, @Body() dto: CreerChambreDto) {
     return this.service.creerChambre(req.user.hopitalId, dto);
+  }
+
+  @Patch('chambres/:id')
+  @Permissions('hospitalisation.gerer')
+  modifierChambre(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: ModifierChambreDto,
+  ) {
+    return this.service.modifierChambre(req.user.hopitalId, id, dto);
+  }
+
+  @Delete('chambres/:id')
+  @Permissions('hospitalisation.gerer')
+  supprimerChambre(@Req() req: any, @Param('id') id: string) {
+    return this.service.supprimerChambre(req.user.hopitalId, id);
   }
 
   @Post('admissions')

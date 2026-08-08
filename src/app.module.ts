@@ -16,6 +16,8 @@ import { ComptesModule } from './comptes/comptes.module';
 import { StatsModule } from './stats/stats.module';
 import { PharmacieModule } from './pharmacie/pharmacie.module';
 import { HospitalisationModule } from './hospitalisation/hospitalisation.module';
+import { VerificationModule } from './verification/verification.module';
+import { VerificationModule } from './verification/verification.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -37,6 +39,8 @@ import { PermissionsGuard } from './auth/permissions.guard';
     StatsModule,
     PharmacieModule,
     HospitalisationModule,
+    VerificationModule,
+    VerificationModule,
   ],
   controllers: [AppController],
   providers: [
