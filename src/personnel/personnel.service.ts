@@ -57,6 +57,81 @@ export class PersonnelService {
   }
 
   // --------------------------------------------------------------------------
+  // Tableau de bord RH : effectif, masse salariale, repartitions,
+  // contrats a echeance (60 jours). Permission personnel.rh.
+  // --------------------------------------------------------------------------
+  async tableauDeBord(hopitalId: string) {
+    const tous = await this.prisma.personnel.findMany({
+      where: { hopitalId },
+      select: {
+        nom: true,
+        prenom: true,
+        fonction: true,
+        statut: true,
+        sexe: true,
+        typeContrat: true,
+        dateFinContrat: true,
+        salaireBase: true,
+      },
+    });
+    const actifs = tous.filter((p) => p.statut !== 'parti');
+
+    const masseSalariale = actifs.reduce(
+      (s, p) => s + (p.salaireBase !== null ? Number(p.salaireBase) : 0),
+      0,
+    );
+
+    const compteur = (cles: (string | null)[]) => {
+      const m = new Map<string, number>();
+      for (const c of cles) {
+        const cle = c ?? 'Non défini';
+        m.set(cle, (m.get(cle) ?? 0) + 1);
+      }
+      return [...m.entries()].map(([cle, nombre]) => ({ cle, nombre }));
+    };
+
+    const masseParFonction = new Map<string, number>();
+    for (const p of actifs) {
+      const salaire = p.salaireBase !== null ? Number(p.salaireBase) : 0;
+      masseParFonction.set(
+        p.fonction,
+        (masseParFonction.get(p.fonction) ?? 0) + salaire,
+      );
+    }
+
+    const horizon = new Date(Date.now() + 60 * 86400000);
+    const contratsEcheance = actifs
+      .filter(
+        (p) =>
+          p.dateFinContrat !== null &&
+          p.dateFinContrat <= horizon,
+      )
+      .sort(
+        (a, b) =>
+          (a.dateFinContrat as Date).getTime() -
+          (b.dateFinContrat as Date).getTime(),
+      )
+      .map((p) => ({
+        nom: p.nom,
+        prenom: p.prenom,
+        fonction: p.fonction,
+        typeContrat: p.typeContrat,
+        dateFinContrat: p.dateFinContrat,
+      }));
+
+    return {
+      effectif: actifs.length,
+      masseSalariale,
+      contratsEcheance,
+      parContrat: compteur(actifs.map((p) => p.typeContrat)),
+      parSexe: compteur(actifs.map((p) => p.sexe)),
+      masseParFonction: [...masseParFonction.entries()]
+        .map(([fonction, masse]) => ({ fonction, masse }))
+        .sort((a, b) => b.masse - a.masse),
+    };
+  }
+
+  // --------------------------------------------------------------------------
   // Fiche RH complete : permission personnel.rh
   // --------------------------------------------------------------------------
   async ficheRh(hopitalId: string, personnelId: string) {

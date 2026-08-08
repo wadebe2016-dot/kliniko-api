@@ -28,6 +28,12 @@ export class PersonnelController {
     );
   }
 
+  @Get('tableau-de-bord')
+  @Permissions('personnel.rh')
+  tableauDeBord(@Req() req: any) {
+    return this.service.tableauDeBord(req.user.hopitalId);
+  }
+
   @Get(':id/rh')
   @Permissions('personnel.rh')
   ficheRh(@Req() req: any, @Param('id') id: string) {
