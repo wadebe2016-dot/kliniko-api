@@ -828,6 +828,7 @@ model MouvementConsommable {
   consommableId  String             @map("consommable_id") @db.Uuid
   type           TypeMouvementStock
   quantite       Int
+  dateMouvement  DateTime           @default(now()) @map("date_mouvement") @db.Date
   datePeremption DateTime?          @map("date_peremption") @db.Date
   prixAchat      Decimal?           @map("prix_achat") @db.Decimal(12, 2)
   motif          String?

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { Permissions } from '../auth/permissions.decorator';
 import { ConsommablesService } from './consommables.service';
 import {
@@ -46,5 +55,11 @@ export class ConsommablesController {
   @Permissions('consommable.gerer')
   ajustement(@Req() req: any, @Body() dto: AjustementConsommableDto) {
     return this.service.ajustement(req.user.hopitalId, dto);
+  }
+
+  @Delete('mouvements/:id')
+  @Permissions('consommable.gerer')
+  supprimerMouvement(@Req() req: any, @Param('id') id: string) {
+    return this.service.supprimerMouvement(req.user.hopitalId, id);
   }
 }

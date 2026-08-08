@@ -44,6 +44,11 @@ export class EntreeConsommableDto {
   @Min(1)
   quantite: number;
 
+  // Date du mouvement, format ISO "2026-07-10" (defaut : aujourd'hui)
+  @IsOptional()
+  @IsString()
+  date?: string;
+
   // Format ISO "2027-06-30"
   @IsOptional()
   @IsString()
@@ -66,6 +71,11 @@ export class SortieConsommableDto {
   @IsInt()
   @Min(1)
   quantite: number;
+
+  // Date du mouvement, format ISO "2026-07-10" (defaut : aujourd'hui)
+  @IsOptional()
+  @IsString()
+  date?: string;
 
   // Qui consomme et pourquoi : "Salle de soins", "Bloc", "Consultation"...
   @IsString()

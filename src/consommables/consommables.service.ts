@@ -94,13 +94,14 @@ export class ConsommablesService {
         id: true,
         type: true,
         quantite: true,
+        dateMouvement: true,
         datePeremption: true,
         motif: true,
         createdAt: true,
         consommable: { select: { designation: true, unite: true } },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: [{ dateMouvement: 'desc' }, { createdAt: 'desc' }],
+      take: 200,
     });
   }
 
@@ -141,6 +142,7 @@ export class ConsommablesService {
         consommableId: dto.consommableId,
         type: 'entree',
         quantite: dto.quantite,
+        dateMouvement: dto.date ? new Date(dto.date) : undefined,
         datePeremption: dto.datePeremption
           ? new Date(dto.datePeremption)
           : null,
@@ -172,6 +174,7 @@ export class ConsommablesService {
         consommableId: dto.consommableId,
         type: 'sortie',
         quantite: dto.quantite,
+        dateMouvement: dto.date ? new Date(dto.date) : undefined,
         motif: dto.motif,
       },
       select: { id: true, type: true, quantite: true, createdAt: true },
@@ -196,6 +199,44 @@ export class ConsommablesService {
       },
       select: { id: true, type: true, quantite: true, createdAt: true },
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Supprimer un mouvement saisi a la main : jamais si le stock de
+  // l'article deviendrait negatif (des sorties s'appuient dessus).
+  // --------------------------------------------------------------------------
+  async supprimerMouvement(hopitalId: string, id: string) {
+    const m = await this.prisma.mouvementConsommable.findFirst({
+      where: { id, hopitalId },
+      select: {
+        id: true,
+        type: true,
+        quantite: true,
+        consommableId: true,
+        consommable: { select: { designation: true } },
+      },
+    });
+    if (!m) throw new NotFoundException('Mouvement introuvable');
+
+    // Ce que la suppression retire au stock : une entree (ou un
+    // ajustement positif) supprimee fait baisser le stock.
+    const retrait =
+      m.type === 'entree' || (m.type === 'ajustement' && m.quantite > 0)
+        ? Math.abs(m.quantite)
+        : 0;
+    if (retrait > 0) {
+      const etat = await this.etatStock(hopitalId);
+      const article = etat.find((a) => a.id === m.consommableId);
+      const stock = article?.stock ?? 0;
+      if (stock - retrait < 0) {
+        throw new BadRequestException(
+          `Suppression impossible : le stock de ${m.consommable.designation} deviendrait negatif (${stock} - ${retrait})`,
+        );
+      }
+    }
+
+    await this.prisma.mouvementConsommable.delete({ where: { id: m.id } });
+    return { id: m.id };
   }
 
   private async verifierConsommable(hopitalId: string, consommableId: string) {
