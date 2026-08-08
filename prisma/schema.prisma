@@ -131,11 +131,10 @@ model Utilisateur {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion        Int       @default(0) @map("row_version")
 
-  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
-  roles            UtilisateurRole[]
-  praticiens       Praticien[]
-  audit            JournalAudit[]
-  hospitalisations Hospitalisation[]
+  hopital    Hopital           @relation(fields: [hopitalId], references: [id])
+  roles      UtilisateurRole[]
+  praticiens Praticien[]
+  audit      JournalAudit[]
 
   @@unique([hopitalId, email])
   @@map("utilisateurs")
@@ -249,6 +248,7 @@ model Praticien {
   ordonnances      Ordonnance[]
   horaireTravails  HoraireTravail[]
   indisponibilites Indisponibilite[]
+  hospitalisations Hospitalisation[]
 
   @@map("praticiens")
 }
@@ -779,11 +779,11 @@ model Hospitalisation {
   factureId   String?               @map("facture_id") @db.Uuid
   createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz
 
-  hopital   Hopital      @relation(fields: [hopitalId], references: [id])
-  patient   Patient      @relation(fields: [patientId], references: [id])
-  lit       Lit          @relation(fields: [litId], references: [id])
-  praticien Utilisateur? @relation(fields: [praticienId], references: [id])
-  facture   Facture?     @relation(fields: [factureId], references: [id])
+  hopital   Hopital    @relation(fields: [hopitalId], references: [id])
+  patient   Patient    @relation(fields: [patientId], references: [id])
+  lit       Lit        @relation(fields: [litId], references: [id])
+  praticien Praticien? @relation(fields: [praticienId], references: [id])
+  facture   Facture?   @relation(fields: [factureId], references: [id])
 
   @@index([hopitalId, statut])
   @@map("hospitalisations")
