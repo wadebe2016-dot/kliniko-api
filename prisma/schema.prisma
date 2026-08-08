@@ -812,6 +812,7 @@ model Consommable {
   unite        String?
   seuilAlerte  Int      @default(10) @map("seuil_alerte")
   prixUnitaire Decimal? @map("prix_unitaire") @db.Decimal(12, 2)
+  note         String?
   actif        Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 

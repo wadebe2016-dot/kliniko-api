@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import {
   AjustementConsommableDto,
   CreerConsommableDto,
   EntreeConsommableDto,
+  ModifierConsommableDto,
   SortieConsommableDto,
 } from './dto/consommables.dto';
 
@@ -37,6 +39,22 @@ export class ConsommablesController {
   @Permissions('consommable.gerer')
   creer(@Req() req: any, @Body() dto: CreerConsommableDto) {
     return this.service.creer(req.user.hopitalId, dto);
+  }
+
+  @Put(':id')
+  @Permissions('consommable.gerer')
+  modifier(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: ModifierConsommableDto,
+  ) {
+    return this.service.modifier(req.user.hopitalId, id, dto);
+  }
+
+  @Delete(':id')
+  @Permissions('consommable.gerer')
+  supprimerArticle(@Req() req: any, @Param('id') id: string) {
+    return this.service.supprimerArticle(req.user.hopitalId, id);
   }
 
   @Post('entrees')

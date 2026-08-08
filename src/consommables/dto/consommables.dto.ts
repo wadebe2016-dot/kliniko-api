@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -34,6 +35,39 @@ export class CreerConsommableDto {
   @IsNumber()
   @Min(0)
   prixUnitaire?: number;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class ModifierConsommableDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'La designation ne peut pas etre vide' })
+  designation?: string;
+
+  @IsOptional()
+  @IsString()
+  unite?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  seuilAlerte?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  prixUnitaire?: number;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  actif?: boolean;
 }
 
 export class EntreeConsommableDto {

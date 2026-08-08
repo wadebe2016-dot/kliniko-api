@@ -8,6 +8,7 @@ import {
   AjustementConsommableDto,
   CreerConsommableDto,
   EntreeConsommableDto,
+  ModifierConsommableDto,
   SortieConsommableDto,
 } from './dto/consommables.dto';
 
@@ -23,7 +24,7 @@ export class ConsommablesService {
   // --------------------------------------------------------------------------
   async etatStock(hopitalId: string) {
     const articles = await this.prisma.consommable.findMany({
-      where: { hopitalId, actif: true },
+      where: { hopitalId },
       select: {
         id: true,
         code: true,
@@ -31,8 +32,10 @@ export class ConsommablesService {
         unite: true,
         seuilAlerte: true,
         prixUnitaire: true,
+        note: true,
+        actif: true,
       },
-      orderBy: { designation: 'asc' },
+      orderBy: [{ actif: 'desc' }, { designation: 'asc' }],
     });
 
     const sommes = await this.prisma.mouvementConsommable.groupBy({
@@ -77,6 +80,8 @@ export class ConsommablesService {
         seuilAlerte: a.seuilAlerte,
         prixUnitaire:
           a.prixUnitaire !== null ? Number(a.prixUnitaire) : null,
+        note: a.note,
+        actif: a.actif,
         stock,
         sousSeuil: stock <= a.seuilAlerte,
         peremptionProche: peremptionDe.get(a.id) ?? null,
@@ -126,9 +131,70 @@ export class ConsommablesService {
         unite: dto.unite ?? null,
         seuilAlerte: dto.seuilAlerte ?? 10,
         prixUnitaire: dto.prixUnitaire ?? null,
+        note: dto.note ?? null,
       },
       select: { id: true, designation: true },
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Modifier un article (nom, unite, seuil, note, actif)
+  // --------------------------------------------------------------------------
+  async modifier(hopitalId: string, id: string, dto: ModifierConsommableDto) {
+    const article = await this.prisma.consommable.findFirst({
+      where: { id, hopitalId },
+      select: { id: true, designation: true },
+    });
+    if (!article) throw new NotFoundException('Article introuvable');
+
+    if (dto.designation && dto.designation !== article.designation) {
+      const doublon = await this.prisma.consommable.findFirst({
+        where: { hopitalId, designation: dto.designation, id: { not: id } },
+        select: { id: true },
+      });
+      if (doublon) {
+        throw new BadRequestException(
+          'Un article portant ce nom existe deja',
+        );
+      }
+    }
+
+    return this.prisma.consommable.update({
+      where: { id },
+      data: {
+        designation: dto.designation ?? undefined,
+        unite: dto.unite ?? undefined,
+        seuilAlerte: dto.seuilAlerte ?? undefined,
+        prixUnitaire: dto.prixUnitaire ?? undefined,
+        note: dto.note !== undefined ? dto.note || null : undefined,
+        actif: dto.actif ?? undefined,
+      },
+      select: { id: true, designation: true },
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Supprimer un article : uniquement sans aucun mouvement, sinon
+  // le desactiver (meme regle qu'Edufo).
+  // --------------------------------------------------------------------------
+  async supprimerArticle(hopitalId: string, id: string) {
+    const article = await this.prisma.consommable.findFirst({
+      where: { id, hopitalId },
+      select: { id: true },
+    });
+    if (!article) throw new NotFoundException('Article introuvable');
+
+    const mouvements = await this.prisma.mouvementConsommable.count({
+      where: { hopitalId, consommableId: id },
+    });
+    if (mouvements > 0) {
+      throw new BadRequestException(
+        'Impossible de supprimer : des mouvements existent pour cet article. Desactivez-le plutot.',
+      );
+    }
+
+    await this.prisma.consommable.delete({ where: { id } });
+    return { id };
   }
 
   // --------------------------------------------------------------------------
