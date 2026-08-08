@@ -203,6 +203,37 @@ export class FacturesService {
           telephonePayeur: dto.telephonePayeur,
         },
       });
+
+      // La tresorerie s'alimente toute seule : l'encaissement cree une
+      // recette dans le compte correspondant au moyen de paiement.
+      // Non bloquant : sans compte configure, l'encaissement passe quand meme.
+      const compte = await tx.compteTresorerie.findFirst({
+        where: {
+          hopitalId,
+          actif: true,
+          type: dto.moyen === 'mobile_money' ? 'mobile_money' : 'caisse',
+        },
+        select: { id: true },
+      });
+      if (compte) {
+        const categorie = await tx.categorieTresorerie.findFirst({
+          where: { hopitalId, nom: 'Recettes de soins' },
+          select: { id: true },
+        });
+        await tx.mouvementTresorerie.create({
+          data: {
+            hopitalId,
+            type: 'recette',
+            compteId: compte.id,
+            categorieId: categorie?.id ?? null,
+            libelle: `Encaissement ${facture.numero}`,
+            beneficiaire: `${facture.patient.nom} ${facture.patient.prenom ?? ''}`.trim(),
+            montant: dto.montant,
+            factureId,
+          },
+        });
+      }
+
       return tx.facture.update({
         where: { id: factureId },
         data: { montantPaye: nouveauPaye, statut: nouveauStatut },
