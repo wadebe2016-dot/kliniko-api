@@ -21,6 +21,7 @@ import { OrdonnancesPatientModule } from './ordonnances-patient/ordonnances-pati
 import { ConsommablesModule } from './consommables/consommables.module';
 import { TarifsModule } from './tarifs/tarifs.module';
 import { PatrimoineModule } from './patrimoine/patrimoine.module';
+import { PersonnelModule } from './personnel/personnel.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -47,6 +48,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     ConsommablesModule,
     TarifsModule,
     PatrimoineModule,
+    PersonnelModule,
   ],
   controllers: [AppController],
   providers: [
