@@ -6,12 +6,27 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { DisponibilitesService } from '../disponibilites/disponibilites.service';
 import { SmsService } from '../comptes/sms.service';
+import { FacturesService } from '../factures/factures.service';
 import { CreateRendezVousDto } from './dto/create-rendez-vous.dto';
 import { UpdateRendezVousDto } from './dto/update-rendez-vous.dto';
 
-// Les informations du patient renvoyees avec chaque rendez-vous (pour l'agenda)
+// Les informations renvoyees avec chaque rendez-vous : le patient (pour
+// l'agenda), et le volet prestation/paiement de la chaine caisse — l'etat
+// "paye, pret pour pre-consultation" se DEDUIT de la facture liee, il n'est
+// jamais stocke.
 const AVEC_PATIENT = {
   patient: { select: { nom: true, prenom: true, numeroDossier: true } },
+  acte: { select: { code: true, libelle: true } },
+  assurance: { select: { nom: true } },
+  facture: {
+    select: {
+      id: true,
+      numero: true,
+      statut: true,
+      montantTotal: true,
+      montantPaye: true,
+    },
+  },
 };
 
 // Statuts pour lesquels le creneau est reellement occupe
@@ -34,6 +49,7 @@ export class RendezVousService {
     private readonly prisma: PrismaService,
     private readonly disponibilites: DisponibilitesService,
     private readonly sms: SmsService,
+    private readonly factures: FacturesService,
   ) {}
 
   // Verifie qu'un patient existe et appartient bien a la clinique
@@ -179,8 +195,38 @@ export class RendezVousService {
       include: AVEC_PATIENT,
     });
 
-    // La reponse de la clinique a une demande patient part en notification
+    // La reponse de la clinique a une demande patient part en notification,
+    // et la chaine caisse s'enclenche : facture generee a la confirmation
+    // (au montant fige sur la demande), annulee si le rendez-vous tombe.
+    // Comme la notification, la facturation n'est JAMAIS bloquante : si elle
+    // echoue, le rendez-vous reste confirme et la caisse facturera a la main.
     if (dto.statut && dto.statut !== existant.statut) {
+      if (dto.statut === 'confirme') {
+        try {
+          await this.factures.creerPourRendezVous(hopitalId, id);
+        } catch (e) {
+          console.error(
+            'Facturation du rendez-vous impossible :',
+            (e as Error).message,
+          );
+        }
+      }
+      if (dto.statut === 'annule' || dto.statut === 'absent') {
+        try {
+          await this.factures.annulerPourRendezVous(
+            hopitalId,
+            id,
+            dto.statut === 'absent'
+              ? 'Patient absent au rendez-vous'
+              : 'Rendez-vous annule',
+          );
+        } catch (e) {
+          console.error(
+            'Annulation de la facture du rendez-vous impossible :',
+            (e as Error).message,
+          );
+        }
+      }
       await this.notifierPatient(maj, dto.statut);
     }
     return maj;
@@ -195,6 +241,18 @@ export class RendezVousService {
       include: AVEC_PATIENT,
     });
     if (existant.statut !== 'annule') {
+      try {
+        await this.factures.annulerPourRendezVous(
+          hopitalId,
+          id,
+          'Rendez-vous annule',
+        );
+      } catch (e) {
+        console.error(
+          'Annulation de la facture du rendez-vous impossible :',
+          (e as Error).message,
+        );
+      }
       await this.notifierPatient(maj, 'annule');
     }
     return maj;

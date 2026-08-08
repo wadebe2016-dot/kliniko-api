@@ -145,6 +145,91 @@ export class FacturesService {
     });
   }
 
+  // --------------------------------------------------------------------------
+  // Facture d'un rendez-vous pris depuis l'application patient, generee a la
+  // confirmation : UNE ligne, au montant FIGE sur la demande (montantPrevu),
+  // jamais au tarif du jour — le patient paie le prix qu'on lui a montre.
+  // La mention d'assurance est portee sur le libelle (visible sur le recu).
+  // --------------------------------------------------------------------------
+  async creerPourRendezVous(hopitalId: string, rendezVousId: string) {
+    const rdv = await this.prisma.rendezVous.findFirst({
+      where: { id: rendezVousId, hopitalId, deletedAt: null },
+      include: {
+        acte: { select: { id: true, libelle: true } },
+        assurance: { select: { nom: true } },
+        facture: { select: { id: true } },
+      },
+    });
+    if (!rdv) {
+      throw new NotFoundException(`Rendez-vous ${rendezVousId} introuvable`);
+    }
+    // Deja facture, ou sans prestation choisie (rendez-vous cree par la
+    // clinique) : rien a generer, et ce n'est pas une erreur.
+    if (rdv.facture) return null;
+    if (!rdv.acteId || rdv.montantPrevu == null) return null;
+
+    const prix = Number(rdv.montantPrevu);
+    const libelleActe = rdv.acte ? rdv.acte.libelle : 'Prestation';
+    const libelle = rdv.assurance
+      ? `${libelleActe} (prise en charge : ${rdv.assurance.nom})`
+      : libelleActe;
+
+    return this.prisma.$transaction(async (tx) => {
+      const annee = new Date().getFullYear();
+      const deja = await tx.facture.count({
+        where: { hopitalId, numero: { startsWith: `F-${annee}-` } },
+      });
+      const numero = `F-${annee}-${String(deja + 1).padStart(4, '0')}`;
+
+      return tx.facture.create({
+        data: {
+          hopitalId,
+          patientId: rdv.patientId,
+          rendezVousId: rdv.id,
+          numero,
+          montantTotal: prix,
+          lignes: {
+            create: [
+              {
+                hopitalId,
+                acteId: rdv.acteId,
+                libelle,
+                quantite: 1,
+                prixUnitaire: prix,
+                montant: prix,
+              },
+            ],
+          },
+        },
+        include: { ...AVEC_PATIENT, lignes: true },
+      });
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // A l'annulation (ou l'absence) d'un rendez-vous : sa facture, si elle est
+  // encore ouverte et sans AUCUN paiement, est annulee avec motif. Des qu'un
+  // franc a ete encaisse, on n'y touche pas — la caisse tranchera.
+  // --------------------------------------------------------------------------
+  async annulerPourRendezVous(
+    hopitalId: string,
+    rendezVousId: string,
+    motif: string,
+  ) {
+    const facture = await this.prisma.facture.findFirst({
+      where: { rendezVousId, hopitalId, deletedAt: null },
+      select: { id: true, statut: true, montantPaye: true },
+    });
+    if (!facture) return null;
+    if (facture.statut !== 'ouverte' || Number(facture.montantPaye) > 0) {
+      return null;
+    }
+    return this.prisma.facture.update({
+      where: { id: facture.id },
+      data: { statut: 'annulee', motifAnnulation: motif },
+    });
+  }
+
   // Lister les factures de la clinique
   async findAll(hopitalId: string) {
     return this.prisma.facture.findMany({
