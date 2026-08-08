@@ -19,6 +19,7 @@ import { HospitalisationModule } from './hospitalisation/hospitalisation.module'
 import { VerificationModule } from './verification/verification.module';
 import { OrdonnancesPatientModule } from './ordonnances-patient/ordonnances-patient.module';
 import { ConsommablesModule } from './consommables/consommables.module';
+import { TarifsModule } from './tarifs/tarifs.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -43,6 +44,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     VerificationModule,
     OrdonnancesPatientModule,
     ConsommablesModule,
+    TarifsModule,
   ],
   controllers: [AppController],
   providers: [
