@@ -23,6 +23,7 @@ import { TarifsModule } from './tarifs/tarifs.module';
 import { PatrimoineModule } from './patrimoine/patrimoine.module';
 import { PersonnelModule } from './personnel/personnel.module';
 import { PaieModule } from './paie/paie.module';
+import { CongesModule } from './conges/conges.module';
 import { TresorerieModule } from './tresorerie/tresorerie.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -52,6 +53,7 @@ import { PermissionsGuard } from './auth/permissions.guard';
     PatrimoineModule,
     PersonnelModule,
     PaieModule,
+    CongesModule,
     TresorerieModule,
   ],
   controllers: [AppController],
