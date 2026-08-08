@@ -132,19 +132,21 @@ model Hopital {
 // ----------------------------- RBAC -----------------------------------------
 
 model Utilisateur {
-  id                String    @id @default(uuid()) @db.Uuid
-  hopitalId         String    @map("hopital_id") @db.Uuid
-  email             String    @db.Citext
-  motDePasse        String    @map("mot_de_passe") // hash argon2/bcrypt
+  id                String     @id @default(uuid()) @db.Uuid
+  hopitalId         String     @map("hopital_id") @db.Uuid
+  email             String     @db.Citext
+  personnelId       String?    @map("personnel_id") @db.Uuid
+  personnelFiche    Personnel? @relation(fields: [personnelId], references: [id])
+  motDePasse        String     @map("mot_de_passe") // hash argon2/bcrypt
   nom               String
   prenom            String?
   telephone         String?
-  actif             Boolean   @default(true)
-  derniereConnexion DateTime? @map("derniere_connexion") @db.Timestamptz
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
-  rowVersion        Int       @default(0) @map("row_version")
+  actif             Boolean    @default(true)
+  derniereConnexion DateTime?  @map("derniere_connexion") @db.Timestamptz
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?  @map("deleted_at") @db.Timestamptz
+  rowVersion        Int        @default(0) @map("row_version")
 
   hopital    Hopital           @relation(fields: [hopitalId], references: [id])
   roles      UtilisateurRole[]
@@ -954,6 +956,7 @@ model Personnel {
   contrats      Contrat[]
   bulletinPaies BulletinPaie[]
   demandeConges DemandeConge[]
+  utilisateurs  Utilisateur[]
 
   @@unique([hopitalId, matricule])
   @@index([hopitalId, statut])
