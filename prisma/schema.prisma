@@ -105,6 +105,7 @@ model Hopital {
   horaireTravails       HoraireTravail[]
   indisponibilites      Indisponibilite[]
   comptePatientDossiers ComptePatientDossier[]
+  mouvementStocks       MouvementStock[]
 
   @@map("hopitaux")
 }
@@ -396,11 +397,12 @@ model Facture {
   deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
   rowVersion     Int           @default(0) @map("row_version")
 
-  hopital      Hopital        @relation(fields: [hopitalId], references: [id])
-  patient      Patient        @relation(fields: [patientId], references: [id])
-  consultation Consultation?  @relation(fields: [consultationId], references: [id])
-  lignes       LigneFacture[]
-  paiements    Paiement[]
+  hopital         Hopital          @relation(fields: [hopitalId], references: [id])
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  consultation    Consultation?    @relation(fields: [consultationId], references: [id])
+  lignes          LigneFacture[]
+  paiements       Paiement[]
+  mouvementStocks MouvementStock[]
 
   @@unique([hopitalId, numero])
   @@map("factures")
@@ -511,14 +513,17 @@ model Medicament {
   denomination String
   forme        String?
   dosage       String?
+  prixVente    Decimal?  @map("prix_vente") @db.Decimal(12, 2)
+  seuilAlerte  Int       @default(10) @map("seuil_alerte")
   actif        Boolean   @default(true)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion   Int       @default(0) @map("row_version")
 
-  hopital Hopital           @relation(fields: [hopitalId], references: [id])
-  lignes  LigneOrdonnance[]
+  hopital         Hopital           @relation(fields: [hopitalId], references: [id])
+  lignes          LigneOrdonnance[]
+  mouvementStocks MouvementStock[]
 
   @@unique([hopitalId, code])
   @@index([hopitalId, denomination])
@@ -543,11 +548,12 @@ model Ordonnance {
   deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz
   rowVersion      Int              @default(0) @map("row_version")
 
-  hopital      Hopital           @relation(fields: [hopitalId], references: [id])
-  patient      Patient           @relation(fields: [patientId], references: [id])
-  praticien    Praticien?        @relation(fields: [praticienId], references: [id])
-  consultation Consultation?     @relation(fields: [consultationId], references: [id])
-  lignes       LigneOrdonnance[]
+  hopital         Hopital           @relation(fields: [hopitalId], references: [id])
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  praticien       Praticien?        @relation(fields: [praticienId], references: [id])
+  consultation    Consultation?     @relation(fields: [consultationId], references: [id])
+  lignes          LigneOrdonnance[]
+  mouvementStocks MouvementStock[]
 
   @@unique([hopitalId, numero])
   @@index([hopitalId, patientId, dateOrdonnance])
@@ -679,4 +685,37 @@ model ComptePatientDossier {
 
   @@unique([compteId, hopitalId])
   @@map("compte_patient_dossiers")
+}
+
+// ------------------------------ Pharmacie -----------------------------------
+// Le stock n'est jamais un chiffre qu'on modifie : c'est la somme des
+// mouvements. Entree = achat/reception ; sortie = dispensation ;
+// ajustement = inventaire (quantite signee).
+
+enum TypeMouvementStock {
+  entree
+  sortie
+  ajustement
+}
+
+model MouvementStock {
+  id             String             @id @default(uuid()) @db.Uuid
+  hopitalId      String             @map("hopital_id") @db.Uuid
+  medicamentId   String             @map("medicament_id") @db.Uuid
+  type           TypeMouvementStock
+  quantite       Int
+  datePeremption DateTime?          @map("date_peremption") @db.Date
+  prixAchat      Decimal?           @map("prix_achat") @db.Decimal(12, 2)
+  ordonnanceId   String?            @map("ordonnance_id") @db.Uuid
+  factureId      String?            @map("facture_id") @db.Uuid
+  motif          String?
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital    Hopital     @relation(fields: [hopitalId], references: [id])
+  medicament Medicament  @relation(fields: [medicamentId], references: [id])
+  ordonnance Ordonnance? @relation(fields: [ordonnanceId], references: [id])
+  facture    Facture?    @relation(fields: [factureId], references: [id])
+
+  @@index([hopitalId, medicamentId, createdAt])
+  @@map("mouvements_stock")
 }
