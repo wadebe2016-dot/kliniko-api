@@ -1,4 +1,10 @@
-﻿import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+﻿import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+} from 'class-validator';
 
 const FORME_UUID =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -22,4 +28,18 @@ export class DemanderRdvDto {
   @IsOptional()
   @IsString()
   motif?: string;
+
+  // Prestation choisie dans la mercuriale publique de la clinique
+  @Matches(FORME_UUID, { message: 'acteId : la prestation est obligatoire' })
+  acteId: string;
+
+  @IsIn(['momo', 'especes'], {
+    message: 'modePaiement : Mobile Money ou especes sur place',
+  })
+  modePaiement: 'momo' | 'especes';
+
+  // Prise en charge : assurance choisie parmi celles de la clinique
+  @IsOptional()
+  @Matches(FORME_UUID, { message: 'assuranceId : identifiant invalide' })
+  assuranceId?: string;
 }

@@ -26,6 +26,10 @@ const VUE_RDV = {
   expireA: true,
   hopital: { select: { id: true, nom: true, ville: true, telephone: true } },
   praticien: { select: { nom: true, prenom: true, specialite: true } },
+  montantPrevu: true,
+  modePaiement: true,
+  acte: { select: { libelle: true } },
+  assurance: { select: { nom: true } },
 };
 
 @Injectable()
@@ -62,9 +66,9 @@ export class RdvPatientService {
       where: { id: compteId, actif: true, deletedAt: null },
     });
     if (!compte) throw new UnauthorizedException('Compte introuvable');
-    if (!compte.nom) {
+    if (!compte.nom || !compte.dateNaissance || !compte.sexe) {
       throw new BadRequestException(
-        'Completez votre profil (nom) avant de reserver',
+        'PROFIL_INCOMPLET : renseignez votre nom, votre date de naissance et votre sexe avant de reserver',
       );
     }
 
@@ -90,6 +94,39 @@ export class RdvPatientService {
       select: { id: true },
     });
     if (!praticien) throw new NotFoundException('Praticien introuvable');
+
+    // La prestation : un acte de la clinique avec un tarif EN VIGUEUR.
+    // Le montant est fige sur la demande (montantPrevu) au prix du jour.
+    const maintenant = new Date();
+    const acte = await this.prisma.acte.findFirst({
+      where: { id: dto.acteId, hopitalId: dto.cliniqueId, deletedAt: null },
+      include: {
+        tarifs: {
+          where: {
+            deletedAt: null,
+            dateDebut: { lte: maintenant },
+            OR: [{ dateFin: null }, { dateFin: { gte: maintenant } }],
+          },
+          orderBy: { dateDebut: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!acte || acte.tarifs.length === 0) {
+      throw new NotFoundException(
+        'Prestation introuvable ou sans tarif en vigueur',
+      );
+    }
+    const montantPrevu = Number(acte.tarifs[0].montant);
+
+    // Prise en charge : l'assurance doit etre acceptee par la clinique
+    if (dto.assuranceId) {
+      const assurance = await this.prisma.assurance.findFirst({
+        where: { id: dto.assuranceId, hopitalId: dto.cliniqueId, actif: true },
+        select: { id: true },
+      });
+      if (!assurance) throw new NotFoundException('Assurance introuvable');
+    }
 
     const debut = new Date(dto.debut);
     if (isNaN(debut.getTime()) || debut < new Date()) {
@@ -147,6 +184,23 @@ export class RdvPatientService {
         await tx.comptePatientDossier.create({
           data: { compteId, hopitalId: dto.cliniqueId, patientId },
         });
+      } else {
+        // Ancien patient : les infos saisies dans son espace completent
+        // son dossier medical SANS ecraser ce que la clinique a deja saisi.
+        const dossier = await tx.patient.findUnique({
+          where: { id: patientId },
+          select: { dateNaissance: true, sexe: true, telephone: true },
+        });
+        if (dossier) {
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              dateNaissance: dossier.dateNaissance ?? compte.dateNaissance,
+              sexe: dossier.sexe ?? compte.sexe ?? undefined,
+              telephone: dossier.telephone ?? `+${compte.telephone}`,
+            },
+          });
+        }
       }
 
       return tx.rendezVous.create({
@@ -158,6 +212,10 @@ export class RdvPatientService {
           debut,
           fin,
           motif: dto.motif ?? null,
+          acteId: acte.id,
+          modePaiement: dto.modePaiement,
+          montantPrevu,
+          assuranceId: dto.assuranceId ?? null,
           origine: 'patient',
           statut: 'planifie',
           expireA: new Date(Date.now() + EXPIRATION_DEMANDE_H * 3600000),

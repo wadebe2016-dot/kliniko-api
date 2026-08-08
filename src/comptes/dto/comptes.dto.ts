@@ -25,12 +25,11 @@ export class ProfilDto {
   @IsString()
   prenom?: string;
 
-  // Format ISO "1990-05-14"
-  @IsOptional()
+  // Format ISO "1990-05-14" — obligatoire : la clinique en a besoin
   @IsString()
-  dateNaissance?: string;
+  @IsNotEmpty({ message: 'La date de naissance est obligatoire' })
+  dateNaissance: string;
 
-  @IsOptional()
-  @IsIn(['M', 'F'])
-  sexe?: 'M' | 'F';
+  @IsIn(['M', 'F'], { message: 'Le sexe est obligatoire' })
+  sexe: 'M' | 'F';
 }

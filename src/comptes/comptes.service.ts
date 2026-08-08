@@ -143,7 +143,9 @@ export class ComptesService {
         nom: compte.nom,
         prenom: compte.prenom,
       },
-      profilComplet: Boolean(compte.nom),
+      profilComplet: Boolean(
+        compte.nom && compte.dateNaissance && compte.sexe,
+      ),
     };
   }
 
@@ -166,8 +168,8 @@ export class ComptesService {
       data: {
         nom: dto.nom,
         prenom: dto.prenom ?? null,
-        dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : null,
-        sexe: dto.sexe ?? null,
+        dateNaissance: new Date(dto.dateNaissance),
+        sexe: dto.sexe,
       },
       select: VUE_COMPTE,
     });
