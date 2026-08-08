@@ -106,6 +106,8 @@ model Hopital {
   indisponibilites      Indisponibilite[]
   comptePatientDossiers ComptePatientDossier[]
   mouvementStocks       MouvementStock[]
+  chambres              Chambre[]
+  hospitalisations      Hospitalisation[]
 
   @@map("hopitaux")
 }
@@ -127,10 +129,11 @@ model Utilisateur {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
   rowVersion        Int       @default(0) @map("row_version")
 
-  hopital    Hopital           @relation(fields: [hopitalId], references: [id])
-  roles      UtilisateurRole[]
-  praticiens Praticien[]
-  audit      JournalAudit[]
+  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
+  roles            UtilisateurRole[]
+  praticiens       Praticien[]
+  audit            JournalAudit[]
+  hospitalisations Hospitalisation[]
 
   @@unique([hopitalId, email])
   @@map("utilisateurs")
@@ -309,6 +312,7 @@ model Patient {
 
   ordonnances           Ordonnance[]
   comptePatientDossiers ComptePatientDossier[]
+  hospitalisations      Hospitalisation[]
 
   @@unique([hopitalId, numeroDossier])
   @@index([hopitalId, nom])
@@ -397,12 +401,13 @@ model Facture {
   deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
   rowVersion     Int           @default(0) @map("row_version")
 
-  hopital         Hopital          @relation(fields: [hopitalId], references: [id])
-  patient         Patient          @relation(fields: [patientId], references: [id])
-  consultation    Consultation?    @relation(fields: [consultationId], references: [id])
-  lignes          LigneFacture[]
-  paiements       Paiement[]
-  mouvementStocks MouvementStock[]
+  hopital          Hopital           @relation(fields: [hopitalId], references: [id])
+  patient          Patient           @relation(fields: [patientId], references: [id])
+  consultation     Consultation?     @relation(fields: [consultationId], references: [id])
+  lignes           LigneFacture[]
+  paiements        Paiement[]
+  mouvementStocks  MouvementStock[]
+  hospitalisations Hospitalisation[]
 
   @@unique([hopitalId, numero])
   @@map("factures")
@@ -718,4 +723,66 @@ model MouvementStock {
 
   @@index([hopitalId, medicamentId, createdAt])
   @@map("mouvements_stock")
+}
+
+// --------------------------- Hospitalisation --------------------------------
+// Une chambre a des lits ; un sejour occupe un lit du debut a la sortie.
+// A la sortie, la facture (optionnelle) = jours x tarif journalier de la
+// chambre. Un lit est occupe s'il porte un sejour en_cours : rien a maintenir.
+
+enum StatutHospitalisation {
+  en_cours
+  terminee
+  annulee
+}
+
+model Chambre {
+  id              String   @id @default(uuid()) @db.Uuid
+  hopitalId       String   @map("hopital_id") @db.Uuid
+  numero          String
+  categorie       String?
+  tarifJournalier Decimal? @map("tarif_journalier") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  lits    Lit[]
+
+  @@unique([hopitalId, numero])
+  @@map("chambres")
+}
+
+model Lit {
+  id        String @id @default(uuid()) @db.Uuid
+  chambreId String @map("chambre_id") @db.Uuid
+  numero    String
+
+  chambre Chambre           @relation(fields: [chambreId], references: [id])
+  sejours Hospitalisation[]
+
+  @@unique([chambreId, numero])
+  @@map("lits")
+}
+
+model Hospitalisation {
+  id          String                @id @default(uuid()) @db.Uuid
+  hopitalId   String                @map("hopital_id") @db.Uuid
+  patientId   String                @map("patient_id") @db.Uuid
+  litId       String                @map("lit_id") @db.Uuid
+  praticienId String?               @map("praticien_id") @db.Uuid
+  motif       String
+  notes       String?
+  statut      StatutHospitalisation @default(en_cours)
+  dateEntree  DateTime              @default(now()) @map("date_entree") @db.Timestamptz
+  dateSortie  DateTime?             @map("date_sortie") @db.Timestamptz
+  factureId   String?               @map("facture_id") @db.Uuid
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital   Hopital      @relation(fields: [hopitalId], references: [id])
+  patient   Patient      @relation(fields: [patientId], references: [id])
+  lit       Lit          @relation(fields: [litId], references: [id])
+  praticien Utilisateur? @relation(fields: [praticienId], references: [id])
+  facture   Facture?     @relation(fields: [factureId], references: [id])
+
+  @@index([hopitalId, statut])
+  @@map("hospitalisations")
 }
