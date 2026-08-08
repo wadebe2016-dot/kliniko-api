@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
-import { VerificationController } from './verification.controller';
+import {
+  VerificationController,
+  VerificationFacturesController,
+} from './verification.controller';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [VerificationController],
+  controllers: [VerificationController, VerificationFacturesController],
 })
 export class VerificationModule {}
