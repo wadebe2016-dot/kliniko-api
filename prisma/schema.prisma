@@ -118,6 +118,8 @@ model Hopital {
   mouvementTresoreries  MouvementTresorerie[]
   ligneBudgets          LigneBudget[]
   centreCouts           CentreCout[]
+  interventionActifs    InterventionActif[]
+  contrats              Contrat[]
 
   @@map("hopitaux")
 }
@@ -851,6 +853,11 @@ enum EtatActif {
   en_maintenance
   en_panne
   reforme
+  bon
+  moyen
+  en_reparation
+  hors_service
+  cede
 }
 
 model Actif {
@@ -863,12 +870,17 @@ model Actif {
   dateAcquisition   DateTime? @map("date_acquisition") @db.Date
   valeurAcquisition Decimal?  @map("valeur_acquisition") @db.Decimal(14, 2)
   dureeAmortAnnees  Int?      @map("duree_amort_annees")
-  etat              EtatActif @default(en_service)
+  etat              EtatActif @default(bon)
   notes             String?
+  fournisseur       String?
+  affecteA          String?   @map("affecte_a") @db.Uuid
+  actif             Boolean   @default(true)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  hopital    Hopital          @relation(fields: [hopitalId], references: [id])
-  evenements EvenementActif[]
+  hopital       Hopital             @relation(fields: [hopitalId], references: [id])
+  affecte       Personnel?          @relation(fields: [affecteA], references: [id])
+  interventions InterventionActif[]
+  evenements    EvenementActif[]
 
   @@index([hopitalId, etat])
   @@map("actifs")
@@ -930,7 +942,9 @@ model Personnel {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  hopital  Hopital   @relation(fields: [hopitalId], references: [id])
+  actifs   Actif[]
+  contrats Contrat[]
 
   @@unique([hopitalId, matricule])
   @@index([hopitalId, statut])
@@ -1048,4 +1062,48 @@ model CentreCout {
 
   @@unique([hopitalId, code])
   @@map("centres_cout")
+}
+
+// Interventions de maintenance : panne/reparation ouverte -> actif
+// "en_reparation" ; derniere intervention cloturee -> retour a "bon".
+model InterventionActif {
+  id               String   @id @default(uuid()) @db.Uuid
+  hopitalId        String   @map("hopital_id") @db.Uuid
+  actifId          String   @map("actif_id") @db.Uuid
+  type             String   @default("panne")
+  description      String
+  cout             Decimal  @default(0) @db.Decimal(14, 2)
+  statut           String   @default("ouverte")
+  dateIntervention DateTime @default(now()) @map("date_intervention") @db.Date
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital Hopital @relation(fields: [hopitalId], references: [id])
+  actif   Actif   @relation(fields: [actifId], references: [id])
+
+  @@index([hopitalId, actifId, statut])
+  @@map("interventions_actifs")
+}
+
+// Contrats (bail, assurance, maintenance, travail...) : le statut
+// temporel est TOUJOURS calcule a la lecture, jamais stocke.
+model Contrat {
+  id            String    @id @default(uuid()) @db.Uuid
+  hopitalId     String    @map("hopital_id") @db.Uuid
+  type          String    @default("prestataire")
+  objet         String
+  cocontractant String?
+  personnelId   String?   @map("personnel_id") @db.Uuid
+  reference     String?
+  dateDebut     DateTime? @map("date_debut") @db.Date
+  dateFin       DateTime? @map("date_fin") @db.Date
+  montant       Decimal   @default(0) @db.Decimal(14, 2)
+  resilie       Boolean   @default(false)
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital   Hopital    @relation(fields: [hopitalId], references: [id])
+  personnel Personnel? @relation(fields: [personnelId], references: [id])
+
+  @@index([hopitalId, dateFin])
+  @@map("contrats")
 }
