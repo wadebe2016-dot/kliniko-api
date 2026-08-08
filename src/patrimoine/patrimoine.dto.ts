@@ -1,5 +1,6 @@
 import {
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -35,6 +36,13 @@ export class CreerActifDto {
   @Min(0)
   valeurAcquisition?: number;
 
+  // Amortissement lineaire : la valeur residuelle est toujours calculee,
+  // jamais stockee.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  dureeAmortAnnees?: number;
+
   @IsOptional()
   @IsString()
   notes?: string;
@@ -58,6 +66,11 @@ export class ModifierActifDto {
   @IsNumber()
   @Min(0)
   valeurAcquisition?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  dureeAmortAnnees?: number;
 
   @IsOptional()
   @IsString()

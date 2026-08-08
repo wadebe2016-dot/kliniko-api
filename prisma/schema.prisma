@@ -853,6 +853,7 @@ model Actif {
   localisation      String?
   dateAcquisition   DateTime? @map("date_acquisition") @db.Date
   valeurAcquisition Decimal?  @map("valeur_acquisition") @db.Decimal(14, 2)
+  dureeAmortAnnees  Int?      @map("duree_amort_annees")
   etat              EtatActif @default(en_service)
   notes             String?
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz

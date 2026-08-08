@@ -17,6 +17,20 @@ const ETAT_LIBELLE: Record<string, string> = {
   reforme: 'Réformé',
 };
 
+// Amortissement lineaire prorata temporis, plancher zero.
+// Sans duree ou sans date d'acquisition : la residuelle vaut l'acquisition.
+function valeurResiduelle(
+  valeur: number | null,
+  dureeAnnees: number | null,
+  dateAcquisition: Date | null,
+): number | null {
+  if (valeur === null) return null;
+  if (!dureeAnnees || dureeAnnees <= 0 || !dateAcquisition) return valeur;
+  const jours = (Date.now() - dateAcquisition.getTime()) / 86400000;
+  const part = Math.min(1, jours / (dureeAnnees * 365.25));
+  return Math.max(0, Math.round(valeur * (1 - part)));
+}
+
 @Injectable()
 export class PatrimoineService {
   constructor(private prisma: PrismaService) {}
@@ -29,11 +43,19 @@ export class PatrimoineService {
       where: { hopitalId },
       orderBy: [{ etat: 'asc' }, { designation: 'asc' }],
     });
-    return actifs.map((a) => ({
-      ...a,
-      valeurAcquisition:
-        a.valeurAcquisition !== null ? Number(a.valeurAcquisition) : null,
-    }));
+    return actifs.map((a) => {
+      const valeur =
+        a.valeurAcquisition !== null ? Number(a.valeurAcquisition) : null;
+      return {
+        ...a,
+        valeurAcquisition: valeur,
+        valeurResiduelle: valeurResiduelle(
+          valeur,
+          a.dureeAmortAnnees,
+          a.dateAcquisition,
+        ),
+      };
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -79,6 +101,7 @@ export class PatrimoineService {
             ? new Date(dto.dateAcquisition)
             : null,
           valeurAcquisition: dto.valeurAcquisition ?? null,
+          dureeAmortAnnees: dto.dureeAmortAnnees ?? null,
           notes: dto.notes ?? null,
         },
         select: { id: true, designation: true },
@@ -109,6 +132,8 @@ export class PatrimoineService {
           dto.localisation !== undefined ? dto.localisation || null : undefined,
         valeurAcquisition:
           dto.valeurAcquisition !== undefined ? dto.valeurAcquisition : undefined,
+        dureeAmortAnnees:
+          dto.dureeAmortAnnees !== undefined ? dto.dureeAmortAnnees : undefined,
         notes: dto.notes !== undefined ? dto.notes || null : undefined,
       },
       select: { id: true, designation: true },
