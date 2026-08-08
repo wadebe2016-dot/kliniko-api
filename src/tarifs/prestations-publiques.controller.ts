@@ -51,4 +51,18 @@ export class PrestationsPubliquesController {
         devise: a.tarifs[0].devise,
       }));
   }
+
+  // Les assurances acceptees par la clinique (pour la prise en charge)
+  @Public()
+  @Get(':id/assurances')
+  async assurances(@Param('id') id: string) {
+    if (!FORME_UUID.test(id)) {
+      throw new NotFoundException('Clinique introuvable');
+    }
+    return this.prisma.assurance.findMany({
+      where: { hopitalId: id, actif: true },
+      select: { id: true, nom: true },
+      orderBy: { nom: 'asc' },
+    });
+  }
 }

@@ -125,6 +125,7 @@ model Hopital {
   bulletinPaies         BulletinPaie[]
   parametresConges      ParametresConges?
   demandeConges         DemandeConge[]
+  assurances            Assurance[]
 
   @@map("hopitaux")
 }
@@ -357,6 +358,8 @@ model RendezVous {
   motifRefus   String?        @map("motif_refus")
   acteId       String?        @map("acte_id") @db.Uuid
   modePaiement String?        @map("mode_paiement")
+  assuranceId  String?        @map("assurance_id") @db.Uuid
+  assurance    Assurance?     @relation(fields: [assuranceId], references: [id])
   montantPrevu Decimal?       @map("montant_prevu") @db.Decimal(12, 2)
   acte         Acte?          @relation(fields: [acteId], references: [id])
   compte       ComptePatient? @relation(fields: [compteId], references: [id])
@@ -1222,4 +1225,20 @@ model DemandeConge {
   @@index([hopitalId, statut])
   @@index([hopitalId, personnelId, dateDebut])
   @@map("demandes_conges")
+}
+
+// Les assurances acceptees par la clinique : le patient qui reserve peut
+// declarer une prise en charge en la choisissant dans cette liste.
+model Assurance {
+  id        String   @id @default(uuid()) @db.Uuid
+  hopitalId String   @map("hopital_id") @db.Uuid
+  nom       String
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  hopital    Hopital      @relation(fields: [hopitalId], references: [id])
+  rendezVous RendezVous[]
+
+  @@unique([hopitalId, nom])
+  @@map("assurances")
 }
