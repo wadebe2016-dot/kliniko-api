@@ -142,6 +142,8 @@ export class ComptesService {
         telephone: compte.telephone,
         nom: compte.nom,
         prenom: compte.prenom,
+        dateNaissance: compte.dateNaissance,
+        sexe: compte.sexe,
       },
       profilComplet: Boolean(
         compte.nom && compte.dateNaissance && compte.sexe,
@@ -163,12 +165,16 @@ export class ComptesService {
 
   async completerProfil(compteId: string, dto: ProfilDto) {
     await this.moi(compteId);
+    const dateNaissance = new Date(dto.dateNaissance);
+    if (isNaN(dateNaissance.getTime()) || dateNaissance > new Date()) {
+      throw new BadRequestException('Date de naissance invalide');
+    }
     return this.prisma.comptePatient.update({
       where: { id: compteId },
       data: {
         nom: dto.nom,
         prenom: dto.prenom ?? null,
-        dateNaissance: new Date(dto.dateNaissance),
+        dateNaissance,
         sexe: dto.sexe,
       },
       select: VUE_COMPTE,

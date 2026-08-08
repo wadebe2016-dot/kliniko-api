@@ -28,7 +28,7 @@ const VUE_RDV = {
   praticien: { select: { nom: true, prenom: true, specialite: true } },
   montantPrevu: true,
   modePaiement: true,
-  acte: { select: { libelle: true } },
+  acte: { select: { code: true, libelle: true } },
   assurance: { select: { nom: true } },
 };
 
@@ -67,9 +67,14 @@ export class RdvPatientService {
     });
     if (!compte) throw new UnauthorizedException('Compte introuvable');
     if (!compte.nom || !compte.dateNaissance || !compte.sexe) {
-      throw new BadRequestException(
-        'PROFIL_INCOMPLET : renseignez votre nom, votre date de naissance et votre sexe avant de reserver',
-      );
+      // Le corps porte un code machine : l'app patient s'en sert pour
+      // renvoyer automatiquement vers l'ecran profil.
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'PROFIL_INCOMPLET',
+        message:
+          'Renseignez votre nom, votre date de naissance et votre sexe avant de reserver',
+      });
     }
 
     // Clinique et praticien : memes exigences que la surface publique
